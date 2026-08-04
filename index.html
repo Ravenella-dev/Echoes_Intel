@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EVE Echoes — Pilot Intel Database</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <header class="app-header">
+    <div class="admin-toolbar" id="adminToolbar">
+      <div class="admin-status" id="adminStatus">
+        <span class="dot"></span>
+        <span class="who">Guest</span>
+      </div>
+      <button class="admin-btn" id="loginBtn">Admin Login</button>
+      <button class="admin-btn primary" id="addPlayerBtn" style="display:none;">+ Add Pilot</button>
+      <button class="admin-btn" id="logoutBtn" style="display:none;">Logout</button>
+    </div>
+
+    <div class="brand">
+      <div class="brand-logo">EE</div>
+      <div class="brand-text">
+        <h1>Pilot <span class="accent">Intel</span> Database</h1>
+        <p>EVE Echoes · Pilot dossier &amp; threat assessment system</p>
+      </div>
+    </div>
+
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input
+        type="text"
+        id="searchInput"
+        class="search-input"
+        placeholder="Search pilots by name, corp, alliance, region, ship, or tag…"
+        autocomplete="off"
+        spellcheck="false"
+      />
+      <button class="search-clear" id="searchClear" title="Clear search">×</button>
+    </div>
+
+    <div class="filter-bar" id="filterBar">
+      <span class="filter-label">Quick filters:</span>
+      <!-- chips injected by JS -->
+    </div>
+  </header>
+
+  <div class="app-body">
+    <!-- RESULTS LIST -->
+    <aside class="results-panel" id="resultsPanel">
+      <div class="results-count" id="resultsCount">Loading database…</div>
+      <div id="resultsList"><!-- player cards injected here --></div>
+    </aside>
+
+    <!-- DETAIL PANEL -->
+    <main class="detail-panel" id="detailPanel">
+      <div class="detail-empty" id="detailEmpty">
+        <div class="empty-icon">🛰️</div>
+        <h2>No pilot selected</h2>
+        <p>Search or select a pilot from the list to view their full dossier — ships, fittings, threat assessment, and field notes.</p>
+      </div>
+      <div id="detailContent" style="display:none;"></div>
+    </main>
+  </div>
+
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="js/app.js"></script>
+
+  <!-- ===== ADMIN MODALS ===== -->
+
+  <!-- Login modal -->
+  <div class="modal-overlay" id="loginModal">
+    <div class="modal">
+      <div class="modal-head">
+        <div class="modal-title"><span class="mt-icon">🔐</span> Admin Login</div>
+        <button class="modal-close" data-close-modal="loginModal">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="login-form">
+          <div class="login-hint">
+            Demo credentials — username: <code>admin</code> · password: <code>echoes2024</code>
+          </div>
+          <div class="form-error" id="loginError">Invalid credentials. Try again.</div>
+          <div class="form-field">
+            <label>Username <span class="req">*</span></label>
+            <input type="text" id="loginUser" autocomplete="off" placeholder="admin" />
+          </div>
+          <div class="form-field">
+            <label>Password <span class="req">*</span></label>
+            <input type="password" id="loginPass" placeholder="••••••••" />
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="admin-btn" data-close-modal="loginModal">Cancel</button>
+        <button class="admin-btn primary" id="loginSubmit">Login</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add/Edit player modal -->
+  <div class="modal-overlay" id="playerFormModal">
+    <div class="modal wide">
+      <div class="modal-head">
+        <div class="modal-title" id="playerFormTitle"><span class="mt-icon">✎</span> Add Pilot</div>
+        <button class="modal-close" data-close-modal="playerFormModal">×</button>
+      </div>
+      <div class="modal-body" id="playerFormBody"><!-- form injected by JS --></div>
+      <div class="modal-foot">
+        <button class="admin-btn" data-close-modal="playerFormModal">Cancel</button>
+        <button class="admin-btn danger" id="playerFormDelete" style="display:none;">Delete Pilot</button>
+        <button class="admin-btn primary" id="playerFormSave">Save Pilot</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm delete modal -->
+  <div class="modal-overlay" id="confirmModal">
+    <div class="modal" style="max-width:420px;">
+      <div class="modal-head">
+        <div class="modal-title"><span class="mt-icon" style="color:var(--danger);">⚠</span> Confirm Removal</div>
+        <button class="modal-close" data-close-modal="confirmModal">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="confirm-msg" id="confirmMsg"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="admin-btn" data-close-modal="confirmModal">Cancel</button>
+        <button class="admin-btn danger" id="confirmDeleteBtn">Remove</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast stack -->
+  <div class="toast-stack" id="toastStack"></div>
+</body>
+</html>
