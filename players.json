@@ -1,0 +1,122 @@
+{
+  "players": [],
+  "tagCategories": {
+    "Dangerous": {
+      "color": "#e74c3c",
+      "icon": "⚠"
+    },
+    "Moderate": {
+      "color": "#f39c12",
+      "icon": "●"
+    },
+    "Weak": {
+      "color": "#27ae60",
+      "icon": "○"
+    },
+    "Main Account": {
+      "color": "#3498db",
+      "icon": "★"
+    },
+    "Alt": {
+      "color": "#95a5a6",
+      "icon": "☆"
+    },
+    "High Value Target": {
+      "color": "#e91e63",
+      "icon": "◆"
+    },
+    "Medium Value Target": {
+      "color": "#9b59b6",
+      "icon": "◇"
+    },
+    "Low Value Target": {
+      "color": "#7f8c8d",
+      "icon": "·"
+    },
+    "Supercapital Pilot": {
+      "color": "#c0392b",
+      "icon": "⚓"
+    },
+    "Capital Pilot": {
+      "color": "#d35400",
+      "icon": "⚓"
+    },
+    "Solo PVPer": {
+      "color": "#8e44ad",
+      "icon": "⚔"
+    },
+    "Small Gang FC": {
+      "color": "#16a085",
+      "icon": "⚑"
+    },
+    "Fleet Pilot": {
+      "color": "#3498db",
+      "icon": "▶"
+    },
+    "Baiter": {
+      "color": "#e67e22",
+      "icon": "✦"
+    },
+    "Bounty Hunter": {
+      "color": "#c0392b",
+      "icon": "₿"
+    },
+    "Stealth Bomber Pilot": {
+      "color": "#2c3e50",
+      "icon": "✺"
+    },
+    "Recon Pilot": {
+      "color": "#16a085",
+      "icon": "◉"
+    },
+    "Tackle Specialist": {
+      "color": "#27ae60",
+      "icon": "⊕"
+    },
+    "Logistics Pilot": {
+      "color": "#2980b9",
+      "icon": "✚"
+    },
+    "Capital Hotdropper": {
+      "color": "#c0392b",
+      "icon": "⚡"
+    },
+    "Structure Buster": {
+      "color": "#d35400",
+      "icon": "✸"
+    },
+    "Explorer": {
+      "color": "#1abc9c",
+      "icon": "⌖"
+    },
+    "Non-Combatant": {
+      "color": "#bdc3c7",
+      "icon": "✕"
+    },
+    "Industrialist": {
+      "color": "#7f8c8d",
+      "icon": "⚒"
+    },
+    "Miner": {
+      "color": "#95a5a6",
+      "icon": "⛏"
+    },
+    "Market Trader": {
+      "color": "#f39c12",
+      "icon": "$"
+    },
+    "PVE'er": {
+      "color": "#1abc9c",
+      "icon": "△"
+    },
+    "Newbie": {
+      "color": "#2ecc71",
+      "icon": "?"
+    },
+    "Fodder": {
+      "color": "#7f8c8d",
+      "icon": "×"
+    }
+  },
+  "savedAt": "2026-08-04T23:35:35.584171+00:00"
+}
