@@ -51,10 +51,10 @@ def _log(msg: str) -> None:
 # Override via env vars if needed:  ECHOES_DB_HOST, ECHOES_DB_USER, ...
 import os
 DB_CONFIG = {
-    "host":     os.environ.get("ECHOES_DB_HOST", "localhost"),
-    "user":     os.environ.get("ECHOES_DB_USER", "echoes"),
-    "password": os.environ.get("ECHOES_DB_PASS", "echopass2024"),
-    "database": os.environ.get("ECHOES_DB_NAME", "echoes_intel"),
+    "host":     os.environ.get("ECHOES_DB_HOST", "sql5.freesqldatabase.com"),
+    "user":     os.environ.get("ECHOES_DB_USER", "sql5834659"),
+    "password": os.environ.get("ECHOES_DB_PASS", "465daY7Eid"),
+    "database": os.environ.get("ECHOES_DB_NAME", "sql5834659"),
     "charset":  "utf8mb4",
     "autocommit": True,
 }
