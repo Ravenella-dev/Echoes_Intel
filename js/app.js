@@ -10,7 +10,7 @@ $(function () {
   /* ============================================================
      CONFIG
      ============================================================ */
-  var DATA_URL = "data/players.json";
+  var DATA_URL = "/api/players";  // served by server.py (MySQL)
   var SCRAPE_URL = "/api/scrape";
   var SAVE_URL = "/api/players";
 

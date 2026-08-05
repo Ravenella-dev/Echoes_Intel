@@ -9,7 +9,7 @@ Endpoints:
 
   POST /api/players   (header: X-Admin-Token: echoes2024)
     -> body: { "players": [ ... ] }
-       writes the full players array to data/players.json (preserving tagCategories)
+       writes the full players array to MySQL (echoes_intel.players table)
        returns { ok, count, savedAt }
 
   GET /api/health
@@ -22,6 +22,7 @@ The server also serves the static frontend files (index.html, css/, js/, data/).
 
 import argparse
 import json
+import pymysql
 import re
 import sys
 import html as html_lib
@@ -44,6 +45,154 @@ ADMIN_TOKEN = "echoes2024"
 
 def _log(msg: str) -> None:
     print(f"[echoes-proxy] {msg}", flush=True)
+
+
+# ---- MySQL config --------------------------------------------------------
+# Override via env vars if needed:  ECHOES_DB_HOST, ECHOES_DB_USER, ...
+import os
+DB_CONFIG = {
+    "host":     os.environ.get("ECHOES_DB_HOST", "localhost"),
+    "user":     os.environ.get("ECHOES_DB_USER", "echoes"),
+    "password": os.environ.get("ECHOES_DB_PASS", "echopass2024"),
+    "database": os.environ.get("ECHOES_DB_NAME", "echoes_intel"),
+    "charset":  "utf8mb4",
+    "autocommit": True,
+}
+
+# Two example pilots seeded on first run (only if the table is empty)
+EXAMPLE_PLAYERS = [
+    {
+        "id": "p001", "name": "Badran", "corporation": "Snuffed Out",
+        "alliance": "Snuffed Out", "faction": "", "region": "Fade",
+        "tags": ["Dangerous", "Supercapital Pilot", "High Value Target", "Solo PVPer"],
+        "threatLevel": 9, "killCount": 4821, "lossCount": 312,
+        "iskDestroyed": 18420000000000, "iskLost": 980000000000,
+        "efficiency": 94.9, "lastSeen": "2024-08-01", "status": "active",
+        "typicalShips": [
+            {"ship": "Naglfar", "role": "Dreadnought brawler",
+             "fitting": ["3x 3500mm Railgun I", "2x Capital Shield Booster II",
+                         "1x Warp Disruptor II", "2x Sensor Booster II"]},
+            {"ship": "Thanatos", "role": "Carrier support",
+             "fitting": ["3x Fighter Squadrons", "2x Capital Remote Armor Repairer",
+                         "1x Drone Damage Amplifier II"]}
+        ],
+        "notes": "Known supercap hotdropper. Favorable trade record vs dreads.",
+        "knownAlts": ["Badran_Alpha", "Badran_Scout"], "bounty": 5000000000
+    },
+    {
+        "id": "p002", "name": "LunaStarlight", "corporation": "Dawn's Embrace",
+        "alliance": "Fraternity.", "faction": "", "region": "Vale of the Silent",
+        "tags": ["Weak", "Alt", "Logistics Pilot", "Low Value Target"],
+        "threatLevel": 2, "killCount": 47, "lossCount": 89,
+        "iskDestroyed": 120000000000, "iskLost": 340000000000,
+        "efficiency": 22.6, "lastSeen": "2024-07-28", "status": "active",
+        "typicalShips": [
+            {"ship": "Scimitar", "role": "Logistics cruiser",
+             "fitting": ["4x Medium Remote Shield Booster II",
+                         "1x Large Shield Extender II", "2x Cap Power Relay II"]}
+        ],
+        "notes": "Logi alt for a main in Fraternity. Rarely flies solo.",
+        "knownAlts": [], "bounty": 0
+    },
+]
+
+# tagCategories is read from data/players.json on first run (kept as the
+# canonical source of tag color/icon metadata).
+
+
+def _db_conn():
+    return pymysql.connect(**DB_CONFIG)
+
+
+def db_init():
+    """Create tables if missing and seed example data on first run."""
+    conn = _db_conn()
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS players (
+            id   VARCHAR(64) PRIMARY KEY,
+            data JSON NOT NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS meta (
+            `key`   VARCHAR(64) PRIMARY KEY,
+            value   LONGTEXT NOT NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    """)
+    cur.execute("SELECT COUNT(*) FROM players")
+    count = cur.fetchone()[0]
+    if count == 0:
+        for p in EXAMPLE_PLAYERS:
+            cur.execute(
+                "INSERT INTO players (id, data) VALUES (%s, %s)",
+                (p["id"], json.dumps(p, ensure_ascii=False)),
+            )
+        # seed tagCategories + savedAt from players.json if available
+        data_file = ROOT / "data" / "players.json"
+        tc = {}
+        if data_file.is_file():
+            tc = json.loads(data_file.read_text("utf-8")).get("tagCategories", {})
+        cur.execute(
+            "INSERT INTO meta (`key`, value) VALUES (%s, %s) "
+            "ON DUPLICATE KEY UPDATE value=VALUES(value)",
+            ("tagCategories", json.dumps(tc, ensure_ascii=False)),
+        )
+        cur.execute(
+            "INSERT INTO meta (`key`, value) VALUES (%s, %s) "
+            "ON DUPLICATE KEY UPDATE value=VALUES(value)",
+            ("savedAt", datetime.now(timezone.utc).isoformat()),
+        )
+        _log(f"Seeded MySQL with {len(EXAMPLE_PLAYERS)} example players")
+    conn.close()
+
+
+def db_load():
+    """Return {players: [...], tagCategories: {...}, savedAt: ...} from MySQL."""
+    conn = _db_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT data FROM players")
+    players = [json.loads(r[0]) for r in cur.fetchall()]
+
+    def meta(k, default):
+        cur.execute("SELECT value FROM meta WHERE `key`=%s", (k,))
+        row = cur.fetchone()
+        if not row:
+            return default
+        v = row[0]
+        return json.loads(v) if (k == "tagCategories" or v[:1] in "{[") else v
+
+    out = {
+        "players": players,
+        "tagCategories": meta("tagCategories", {}),
+        "savedAt": meta("savedAt", None),
+    }
+    conn.close()
+    return out
+
+
+def db_save(players):
+    """Replace all players in MySQL. Returns savedAt timestamp."""
+    saved_at = datetime.now(timezone.utc).isoformat()
+    conn = _db_conn()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM players")
+    for p in players:
+        cur.execute(
+            "INSERT INTO players (id, data) VALUES (%s, %s)",
+            (p.get("id") or p.get("name", ""), json.dumps(p, ensure_ascii=False)),
+        )
+    cur.execute(
+        "INSERT INTO meta (`key`, value) VALUES (%s, %s) "
+        "ON DUPLICATE KEY UPDATE value=VALUES(value)",
+        ("savedAt", saved_at),
+    )
+    conn.close()
+    _log(f"Saved {len(players)} players to MySQL")
+    return saved_at
+
+
+db_init()
 
 
 def _format_isk(raw) -> int:
@@ -329,22 +478,11 @@ class Handler(BaseHTTPRequestHandler):
                 if not isinstance(players, list):
                     self._json(400, {"ok": False, "error": "missing 'players' array"})
                     return
-
-                data_file = ROOT / "data" / "players.json"
-                existing = {}
-                if data_file.is_file():
-                    existing = json.loads(data_file.read_text("utf-8"))
-                existing["players"] = players
-                existing["savedAt"] = datetime.now(timezone.utc).isoformat()
-
-                tmp = data_file.with_suffix(".json.tmp")
-                tmp.write_text(json.dumps(existing, indent=2, ensure_ascii=False), "utf-8")
-                tmp.replace(data_file)
-                _log(f"Saved {len(players)} players to {data_file.name}")
+                saved_at = db_save(players)
                 self._json(200, {
                     "ok": True,
                     "count": len(players),
-                    "savedAt": existing["savedAt"],
+                    "savedAt": saved_at,
                 })
             except json.JSONDecodeError:
                 self._json(400, {"ok": False, "error": "invalid JSON body"})
@@ -366,6 +504,13 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/health":
             self._json(200, {"ok": True, "service": "echoes-proxy",
                              "time": datetime.now(timezone.utc).isoformat()})
+            return
+
+        if path == "/api/players":
+            try:
+                self._json(200, db_load())
+            except Exception as e:
+                self._json(500, {"ok": False, "error": str(e)})
             return
 
         if path == "/api/scrape":
