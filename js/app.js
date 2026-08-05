@@ -497,7 +497,7 @@ $(function () {
         '<div class="echoes-fetch-head">' +
           '<div class="form-field">' +
             '<label>Pilot name on echoes.mobi</label>' +
-            '<input type="text" id="scrapeName" placeholder="e.g. Badran" value="' + escapeHtml(isEdit ? p.name : "") + '" />' +
+            '<input type="text" id="scrapeName" placeholder="Enter a pilot..." value="' + escapeHtml(isEdit ? p.name : "") + '" />' +
           '</div>' +
           '<button class="admin-btn primary" id="scrapeBtn" style="height:38px;margin-bottom:0;">Fetch stats</button>' +
         '</div>' +
@@ -708,7 +708,7 @@ $(function () {
         item("ISK lost", formatIsk(d.iskLost || 0), "") +
         item("ISK efficiency", (d.iskEfficiencyDangerous || 0) + "%",
           ((d.iskEfficiencyDangerous || 0) >= 75 ? "green" : "red")) +
-        item("Kill ratio (dangerous)", (d.killRatioDangerous || 0) + "%", "") +
+        item("Kill ratio", (100 - d.killRatioDangerous || 0) + "%", "") +
         item("Corporation", escapeHtml(d.corporation || "—"), "") +
         item("Best kill", escapeHtml(d.bestKill || "—") +
           (d.bestKillIsk ? " · " + formatIsk(d.bestKillIsk) : ""), "") +
