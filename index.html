@@ -133,6 +133,24 @@
     </div>
   </div>
 
+  <!-- Add/Edit bounty modal -->
+  <div class="modal-overlay" id="bountyFormModal">
+    <div class="modal" style="max-width:560px;">
+      <div class="modal-head">
+        <div class="modal-title" id="bountyFormTitle"><span class="mt-icon">🦂</span> Add Bounty</div>
+        <button class="modal-close" data-close-modal="bountyFormModal">×</button>
+      </div>
+      <div class="modal-body" id="bountyFormBody">
+        <!-- bounty form injected by JS -->
+      </div>
+      <div class="modal-foot">
+        <button class="admin-btn" data-close-modal="bountyFormModal">Cancel</button>
+        <button class="admin-btn danger" id="bountyFormDelete" style="display:none;">Delete Bounty</button>
+        <button class="admin-btn primary" id="bountyFormSave">Save Bounty</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast stack -->
   <div class="toast-stack" id="toastStack"></div>
 </body>

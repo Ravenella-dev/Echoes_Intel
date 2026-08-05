@@ -12,6 +12,21 @@ Endpoints:
        writes the full players array to MySQL (echoes_intel.players table)
        returns { ok, count, savedAt }
 
+  GET /api/bounties
+    -> returns { ok, bounties: [...], bountyHistory: { "PlayerName": [ {ts,total,...}, ... ] } }
+
+  POST /api/bounties   (header: X-Admin-Token: echoes2024)
+    -> body: { bounty: { target_player_id, target_name, issuer_name, issuer_corp,
+                         issuer_discord, broker_name, broker_discord, is_masked, amount } }
+       inserts a new bounty row, logs a history point, returns { ok, bounty }
+
+  PUT /api/bounties/<id>   (header: X-Admin-Token: echoes2024)
+    -> body: { bounty: { ... } }
+       updates an existing bounty, logs a history point, returns { ok, bounty }
+
+  DELETE /api/bounties/<id>   (header: X-Admin-Token: echoes2024)
+       deletes a bounty row, logs a history point, returns { ok }
+
   GET /api/health
     -> { ok: true, service: "echoes-proxy" }
 
@@ -99,6 +114,32 @@ EXAMPLE_PLAYERS = [
 # tagCategories is read from data/players.json on first run (kept as the
 # canonical source of tag color/icon metadata).
 
+# Example bounties seeded on first run (only if the bounties table is empty).
+# Multiple bounties on the same target demonstrate the multi-contributor system.
+EXAMPLE_BOUNTIES = [
+    {
+        "target_player_id": "p001", "target_name": "Badran",
+        "issuer_name": "Dirtnap Jimmy", "issuer_corp": "Hard Knocks Inc.",
+        "issuer_discord": "dirtnap#0420",
+        "broker_name": "", "broker_discord": "",
+        "is_masked": False, "amount": 3000000000,
+    },
+    {
+        "target_player_id": "p001", "target_name": "Badran",
+        "issuer_name": "Anonymous Client", "issuer_corp": "",
+        "issuer_discord": "",
+        "broker_name": "Kane Midfield", "broker_discord": "kane_mid#7788",
+        "is_masked": True, "amount": 2000000000,
+    },
+    {
+        "target_player_id": "p002", "target_name": "LunaStarlight",
+        "issuer_name": "Vegas Lazer", "issuer_corp": "Snuffed Out",
+        "issuer_discord": "vegas_lazer#1133",
+        "broker_name": "", "broker_discord": "",
+        "is_masked": False, "amount": 500000000,
+    },
+]
+
 
 def _db_conn():
     return pymysql.connect(**DB_CONFIG)
@@ -118,6 +159,30 @@ def db_init():
         CREATE TABLE IF NOT EXISTS meta (
             `key`   VARCHAR(64) PRIMARY KEY,
             value   LONGTEXT NOT NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS bounties (
+            id                INT AUTO_INCREMENT PRIMARY KEY,
+            target_player_id  VARCHAR(64) NOT NULL,
+            target_name       VARCHAR(128) NOT NULL,
+            issuer_name       VARCHAR(128) NOT NULL,
+            issuer_corp       VARCHAR(128) NOT NULL DEFAULT '',
+            issuer_discord    VARCHAR(128) NOT NULL DEFAULT '',
+            broker_name       VARCHAR(128) NOT NULL DEFAULT '',
+            broker_discord    VARCHAR(128) NOT NULL DEFAULT '',
+            is_masked         TINYINT(1) NOT NULL DEFAULT 0,
+            amount            BIGINT NOT NULL DEFAULT 0,
+            created_at        VARCHAR(40) NOT NULL,
+            updated_at        VARCHAR(40) NOT NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS bounty_history (
+            id            INT AUTO_INCREMENT PRIMARY KEY,
+            target_name   VARCHAR(128) NOT NULL,
+            total_amount  BIGINT NOT NULL DEFAULT 0,
+            logged_at     VARCHAR(40) NOT NULL
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     """)
     cur.execute("SELECT COUNT(*) FROM players")
@@ -144,6 +209,30 @@ def db_init():
             ("savedAt", datetime.now(timezone.utc).isoformat()),
         )
         _log(f"Seeded MySQL with {len(EXAMPLE_PLAYERS)} example players")
+
+    # seed example bounties if the bounties table is empty
+    cur.execute("SELECT COUNT(*) FROM bounties")
+    bcount = cur.fetchone()[0]
+    if bcount == 0 and EXAMPLE_BOUNTIES:
+        now = datetime.now(timezone.utc).isoformat()
+        for b in EXAMPLE_BOUNTIES:
+            cur.execute(
+                "INSERT INTO bounties (target_player_id, target_name, "
+                "issuer_name, issuer_corp, issuer_discord, "
+                "broker_name, broker_discord, is_masked, amount, "
+                "created_at, updated_at) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                (
+                    b["target_player_id"], b["target_name"],
+                    b["issuer_name"], b["issuer_corp"], b["issuer_discord"],
+                    b["broker_name"], b["broker_discord"],
+                    1 if b["is_masked"] else 0, b["amount"],
+                    now, now,
+                ),
+            )
+        # log an initial history point for each seeded target
+        _log_bounty_history(cur)
+        _log(f"Seeded MySQL with {len(EXAMPLE_BOUNTIES)} example bounties")
     conn.close()
 
 
@@ -166,6 +255,8 @@ def db_load():
         "players": players,
         "tagCategories": meta("tagCategories", {}),
         "savedAt": meta("savedAt", None),
+        "bounties": db_bounty_load_all(),
+        "bountyHistory": db_bounty_history(),
     }
     conn.close()
     return out
@@ -190,6 +281,157 @@ def db_save(players):
     conn.close()
     _log(f"Saved {len(players)} players to MySQL")
     return saved_at
+
+
+# ---- Bounty helpers ------------------------------------------------------
+
+_BOUNTY_COLS = (
+    "id, target_player_id, target_name, issuer_name, issuer_corp, "
+    "issuer_discord, broker_name, broker_discord, is_masked, amount, "
+    "created_at, updated_at"
+)
+
+
+def _row_to_bounty(row):
+    return {
+        "id": row[0],
+        "target_player_id": row[1],
+        "target_name": row[2],
+        "issuer_name": row[3],
+        "issuer_corp": row[4],
+        "issuer_discord": row[5],
+        "broker_name": row[6],
+        "broker_discord": row[7],
+        "is_masked": bool(row[8]),
+        "amount": int(row[9]),
+        "created_at": row[10],
+        "updated_at": row[11],
+    }
+
+
+def _log_bounty_history(cur):
+    """Insert one history row per target_name with the current total bounty."""
+    cur.execute(
+        "SELECT target_name, COALESCE(SUM(amount),0) FROM bounties GROUP BY target_name"
+    )
+    now = datetime.now(timezone.utc).isoformat()
+    for target_name, total in cur.fetchall():
+        cur.execute(
+            "INSERT INTO bounty_history (target_name, total_amount, logged_at) "
+            "VALUES (%s, %s, %s)",
+            (target_name, int(total), now),
+        )
+
+
+def db_bounty_load_all():
+    """Return a list of all bounty dicts."""
+    conn = _db_conn()
+    cur = conn.cursor()
+    cur.execute(f"SELECT {_BOUNTY_COLS} FROM bounties ORDER BY id")
+    rows = cur.fetchall()
+    conn.close()
+    return [_row_to_bounty(r) for r in rows]
+
+
+def db_bounty_history():
+    """Return { target_name: [ {ts, total}, ... ] } sorted by time."""
+    conn = _db_conn()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT target_name, total_amount, logged_at "
+        "FROM bounty_history ORDER BY target_name, logged_at"
+    )
+    out = {}
+    for target_name, total, logged_at in cur.fetchall():
+        out.setdefault(target_name, []).append({
+            "ts": logged_at, "total": int(total),
+        })
+    conn.close()
+    return out
+
+
+def db_bounty_add(bounty):
+    """Insert a new bounty and log a history point. Returns the bounty dict."""
+    now = datetime.now(timezone.utc).isoformat()
+    conn = _db_conn()
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO bounties (target_player_id, target_name, "
+        "issuer_name, issuer_corp, issuer_discord, "
+        "broker_name, broker_discord, is_masked, amount, "
+        "created_at, updated_at) "
+        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+        (
+            bounty.get("target_player_id", ""),
+            bounty.get("target_name", ""),
+            bounty.get("issuer_name", ""),
+            bounty.get("issuer_corp", ""),
+            bounty.get("issuer_discord", ""),
+            bounty.get("broker_name", ""),
+            bounty.get("broker_discord", ""),
+            1 if bounty.get("is_masked") else 0,
+            int(bounty.get("amount", 0)),
+            now, now,
+        ),
+    )
+    new_id = cur.lastrowid
+    _log_bounty_history(cur)
+    conn.close()
+    _log(f"Added bounty #{new_id} on {bounty.get('target_name')}")
+    return db_bounty_get(new_id)
+
+
+def db_bounty_get(bounty_id):
+    """Return a single bounty dict by id, or None."""
+    conn = _db_conn()
+    cur = conn.cursor()
+    cur.execute(f"SELECT {_BOUNTY_COLS} FROM bounties WHERE id=%s", (bounty_id,))
+    row = cur.fetchone()
+    conn.close()
+    return _row_to_bounty(row) if row else None
+
+
+def db_bounty_update(bounty_id, bounty):
+    """Update an existing bounty and log a history point. Returns the bounty dict."""
+    now = datetime.now(timezone.utc).isoformat()
+    conn = _db_conn()
+    cur = conn.cursor()
+    cur.execute(
+        "UPDATE bounties SET "
+        "target_player_id=%s, target_name=%s, "
+        "issuer_name=%s, issuer_corp=%s, issuer_discord=%s, "
+        "broker_name=%s, broker_discord=%s, is_masked=%s, amount=%s, "
+        "updated_at=%s WHERE id=%s",
+        (
+            bounty.get("target_player_id", ""),
+            bounty.get("target_name", ""),
+            bounty.get("issuer_name", ""),
+            bounty.get("issuer_corp", ""),
+            bounty.get("issuer_discord", ""),
+            bounty.get("broker_name", ""),
+            bounty.get("broker_discord", ""),
+            1 if bounty.get("is_masked") else 0,
+            int(bounty.get("amount", 0)),
+            now, bounty_id,
+        ),
+    )
+    _log_bounty_history(cur)
+    conn.close()
+    _log(f"Updated bounty #{bounty_id}")
+    return db_bounty_get(bounty_id)
+
+
+def db_bounty_delete(bounty_id):
+    """Delete a bounty and log a history point. Returns True if a row was deleted."""
+    conn = _db_conn()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM bounties WHERE id=%s", (bounty_id,))
+    deleted = cur.rowcount > 0
+    if deleted:
+        _log_bounty_history(cur)
+        _log(f"Deleted bounty #{bounty_id}")
+    conn.close()
+    return deleted
 
 
 db_init()
@@ -408,7 +650,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Admin-Token")
         self.end_headers()
         self.wfile.write(body)
@@ -451,7 +693,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self): 
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Admin-Token")
         self.end_headers()
 
@@ -461,14 +703,16 @@ class Handler(BaseHTTPRequestHandler):
             return b""
         return self.rfile.read(length)
 
+    def _is_admin(self):
+        return self.headers.get("X-Admin-Token", "") == ADMIN_TOKEN
+
     def do_POST(self):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
 
         if path == "/api/players":
             # auth check
-            token = self.headers.get("X-Admin-Token", "")
-            if token != ADMIN_TOKEN:
+            if not self._is_admin():
                 self._json(401, {"ok": False, "error": "unauthorized"})
                 return
             try:
@@ -484,6 +728,28 @@ class Handler(BaseHTTPRequestHandler):
                     "count": len(players),
                     "savedAt": saved_at,
                 })
+            except json.JSONDecodeError:
+                self._json(400, {"ok": False, "error": "invalid JSON body"})
+            except Exception as e:
+                self._json(500, {"ok": False, "error": str(e)})
+            return
+
+        if path == "/api/bounties":
+            if not self._is_admin():
+                self._json(401, {"ok": False, "error": "unauthorized"})
+                return
+            try:
+                raw = self._read_body()
+                payload = json.loads(raw.decode("utf-8"))
+                bounty = payload.get("bounty")
+                if not isinstance(bounty, dict):
+                    self._json(400, {"ok": False, "error": "missing 'bounty' object"})
+                    return
+                if not bounty.get("target_name"):
+                    self._json(400, {"ok": False, "error": "bounty requires target_name"})
+                    return
+                created = db_bounty_add(bounty)
+                self._json(200, {"ok": True, "bounty": created})
             except json.JSONDecodeError:
                 self._json(400, {"ok": False, "error": "invalid JSON body"})
             except Exception as e:
@@ -538,12 +804,95 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(500, {"ok": False, "error": str(e), "player": player})
             return
 
+        if path == "/api/bounties":
+            try:
+                self._json(200, {
+                    "ok": True,
+                    "bounties": db_bounty_load_all(),
+                    "bountyHistory": db_bounty_history(),
+                })
+            except Exception as e:
+                self._json(500, {"ok": False, "error": str(e)})
+            return
+
         # static files (frontend)
         if path.startswith("/api/"):
             self._json(404, {"ok": False, "error": "unknown api route"})
             return
 
         self._static(path)
+
+    def do_PUT(self):
+        parsed = urllib.parse.urlparse(self.path)
+        path = parsed.path
+
+        # /api/bounties/<id>
+        if path.startswith("/api/bounties/"):
+            if not self._is_admin():
+                self._json(401, {"ok": False, "error": "unauthorized"})
+                return
+            try:
+                bounty_id = int(path.rsplit("/", 1)[-1])
+            except ValueError:
+                self._json(400, {"ok": False, "error": "invalid bounty id"})
+                return
+            try:
+                raw = self._read_body()
+                payload = json.loads(raw.decode("utf-8"))
+                bounty = payload.get("bounty")
+                if not isinstance(bounty, dict):
+                    self._json(400, {"ok": False, "error": "missing 'bounty' object"})
+                    return
+                if not bounty.get("target_name"):
+                    self._json(400, {"ok": False, "error": "bounty requires target_name"})
+                    return
+                existing = db_bounty_get(bounty_id)
+                if not existing:
+                    self._json(404, {"ok": False, "error": "bounty not found"})
+                    return
+                updated = db_bounty_update(bounty_id, bounty)
+                self._json(200, {"ok": True, "bounty": updated})
+            except json.JSONDecodeError:
+                self._json(400, {"ok": False, "error": "invalid JSON body"})
+            except Exception as e:
+                self._json(500, {"ok": False, "error": str(e)})
+            return
+
+        if path.startswith("/api/"):
+            self._json(404, {"ok": False, "error": "unknown api route"})
+            return
+
+        self._json(405, {"ok": False, "error": "method not allowed"})
+
+    def do_DELETE(self):
+        parsed = urllib.parse.urlparse(self.path)
+        path = parsed.path
+
+        # /api/bounties/<id>
+        if path.startswith("/api/bounties/"):
+            if not self._is_admin():
+                self._json(401, {"ok": False, "error": "unauthorized"})
+                return
+            try:
+                bounty_id = int(path.rsplit("/", 1)[-1])
+            except ValueError:
+                self._json(400, {"ok": False, "error": "invalid bounty id"})
+                return
+            try:
+                deleted = db_bounty_delete(bounty_id)
+                if not deleted:
+                    self._json(404, {"ok": False, "error": "bounty not found"})
+                    return
+                self._json(200, {"ok": True, "id": bounty_id})
+            except Exception as e:
+                self._json(500, {"ok": False, "error": str(e)})
+            return
+
+        if path.startswith("/api/"):
+            self._json(404, {"ok": False, "error": "unknown api route"})
+            return
+
+        self._json(405, {"ok": False, "error": "method not allowed"})
 
     def log_message(self, fmt, *args):  # quieter logs
         _log("%s - %s" % (self.address_string(), fmt % args))

@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Local databases
+*.db
+data/intel.db
+
+# Browser automation artifacts
+.browser_data/
+.psiphon_data/
+.screenshots/
+
+# Agent working files
+outputs/
+summarized_conversations/
+todo.md
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~

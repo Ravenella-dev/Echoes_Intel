@@ -646,6 +646,10 @@ header.app-header {
 }
 
 /* bounty */
+.bounty-section {
+  margin: 16px 0;
+}
+
 .bounty-box {
   background: linear-gradient(135deg, rgba(241,196,15,0.12), rgba(192,57,43,0.1));
   border: 1px solid rgba(241,196,15,0.3);
@@ -660,6 +664,22 @@ header.app-header {
 .bounty-box.no-bounty {
   background: rgba(127,140,141,0.05);
   border-color: rgba(127,140,141,0.2);
+}
+
+.bounty-box.has-bounty {
+  border-color: rgba(241,196,15,0.4);
+  box-shadow: 0 0 18px rgba(241,196,15,0.06);
+}
+
+.bounty-box-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bounty-box-side {
+  display: flex;
+  align-items: center;
 }
 
 .bounty-label {
@@ -680,6 +700,211 @@ header.app-header {
 .bounty-box.no-bounty .bounty-amount {
   color: var(--text-faint);
   font-size: 20px;
+}
+
+.bounty-contrib-count {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+/* bounty contributor list */
+.bounty-contrib-list {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bounty-contrib {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(159,168,217,0.12);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.bounty-contrib-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.bounty-contrib-head:hover {
+  background: rgba(241,196,15,0.04);
+}
+
+.bounty-contrib-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bounty-contrib-amount {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--gold);
+  font-family: "Consolas", "Monaco", monospace;
+}
+
+.bounty-contrib-toggle {
+  font-size: 12px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.masked-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  background: rgba(155,89,182,0.2);
+  border: 1px solid rgba(155,89,182,0.4);
+  color: #bb8fce;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.bounty-contrib-body {
+  padding: 14px 16px;
+  border-top: 1px solid rgba(159,168,217,0.1);
+  background: rgba(0,0,0,0.15);
+}
+
+.bounty-contact {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.bounty-contact.masked .contact-name {
+  color: #bb8fce;
+}
+
+.contact-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.contact-label {
+  font-size: 11px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.contact-row {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.contact-row .ck {
+  color: var(--text-faint);
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+.bounty-contrib-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.admin-btn.small {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+/* bounty chart */
+.bounty-chart-wrap {
+  margin-top: 16px;
+  background: rgba(0,0,0,0.2);
+  border: 1px solid rgba(159,168,217,0.1);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+
+.bounty-chart-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.bounty-chart {
+  width: 100% !important;
+  height: auto !important;
+  max-width: 100%;
+  display: block;
+}
+
+/* card bounty badge */
+.card-bounty-badge {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gold);
+  background: rgba(241,196,15,0.12);
+  border: 1px solid rgba(241,196,15,0.3);
+  padding: 1px 7px;
+  border-radius: 4px;
+  vertical-align: middle;
+  font-family: "Consolas", "Monaco", monospace;
+}
+
+/* bounty form */
+.bounty-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.bounty-form-divider {
+  height: 1px;
+  background: rgba(159,168,217,0.15);
+  margin: 4px 0;
+}
+
+.bounty-form-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.bounty-form-masked-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bounty-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.bounty-checkbox-row input {
+  width: 18px;
+  height: 18px;
+  accent-color: #9b59b6;
+  cursor: pointer;
+}
+
+.bounty-empty-add,
+.bounty-add-btn {
+  white-space: nowrap;
 }
 
 /* loading / error */

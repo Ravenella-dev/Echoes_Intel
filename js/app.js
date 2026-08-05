@@ -13,6 +13,7 @@ $(function () {
   var DATA_URL = "/api/players";  // served by server.py (MySQL)
   var SCRAPE_URL = "/api/scrape";
   var SAVE_URL = "/api/players";
+  var BOUNTY_URL = "/api/bounties";
 
   // Demo admin credentials (client-side only).
   var ADMIN_USER = "admin";
@@ -26,6 +27,8 @@ $(function () {
   var DATA = null;
   var TAG_CATS = null;
   var PLAYERS = [];
+  var BOUNTIES = [];           // all bounty objects from the server
+  var BOUNTY_HISTORY = {};     // { "PlayerName": [ {ts, total}, ... ] }
   var activeFilters = [];
   var currentTerm = "";
   var selectedId = null;
@@ -33,6 +36,8 @@ $(function () {
   var editingId = null;       // player id being edited (null = adding new)
   var pendingDeleteId = null;
   var lastScrapeData = null;  // echoes.mobi result currently in the form
+  var editingBountyId = null; // bounty id being edited (null = adding new)
+  var bountyFormTargetId = null; // player id the bounty form is targeting
 
   var QUICK_FILTERS = [
     "Dangerous", "Weak", "Main Account", "Alt",
@@ -132,6 +137,59 @@ $(function () {
 
   function findPlayer(id) {
     return PLAYERS.find(function (x) { return x.id === id; });
+  }
+
+  /* ============================================================
+     BOUNTY HELPERS
+     ============================================================ */
+  // Return all bounties whose target_player_id matches the given player id.
+  function bountiesForPlayer(playerId) {
+    return BOUNTIES.filter(function (b) { return b.target_player_id === playerId; });
+  }
+
+  // Sum the total bounty amount for a player.
+  function totalBountyForPlayer(playerId) {
+    return bountiesForPlayer(playerId).reduce(function (sum, b) {
+      return sum + (Number(b.amount) || 0);
+    }, 0);
+  }
+
+  // Persist a bounty to the server via POST (new) or PUT (existing).
+  function saveBounty(bounty, bountyId) {
+    var method = bountyId ? "PUT" : "POST";
+    var url = bountyId ? BOUNTY_URL + "/" + bountyId : BOUNTY_URL;
+    return $.ajax({
+      type: method,
+      url: url,
+      contentType: "application/json",
+      headers: { "X-Admin-Token": ADMIN_PASS },
+      data: JSON.stringify({ bounty: bounty })
+    });
+  }
+
+  // Delete a bounty from the server via DELETE.
+  function deleteBountyRemote(bountyId) {
+    return $.ajax({
+      type: "DELETE",
+      url: BOUNTY_URL + "/" + bountyId,
+      headers: { "X-Admin-Token": ADMIN_PASS }
+    });
+  }
+
+  // Refresh bounties + history from the server and re-render detail.
+  function refreshBounties(then) {
+    $.getJSON(BOUNTY_URL)
+      .done(function (resp) {
+        if (resp && resp.ok) {
+          BOUNTIES = resp.bounties || [];
+          BOUNTY_HISTORY = resp.bountyHistory || {};
+          if (selectedId) renderDetail(selectedId);
+          if (then) then();
+        }
+      })
+      .fail(function () {
+        if (then) then();
+      });
   }
 
   /* ---------- Toast notifications ---------- */
@@ -261,11 +319,16 @@ $(function () {
           '" title="Stats from echoes.mobi · ' + escapeHtml(p.scrapedAt) + '">echoes.mobi</span>'
         : "";
 
+      var bountyTotal = totalBountyForPlayer(p.id);
+      var bountyBadge = bountyTotal > 0
+        ? '<span class="card-bounty-badge" title="Active bounty: ' + formatIsk(bountyTotal) + ' ISK">🪸 ' + formatIsk(bountyTotal) + '</span>'
+        : "";
+
       html +=
         '<div class="player-card ' + vClass + isActive + '" data-id="' + p.id + '">' +
           '<div class="player-card-row">' +
             '<div>' +
-              '<div class="player-name">' + highlight(p.name, term) + scrapeBadge + '</div>' +
+              '<div class="player-name">' + highlight(p.name, term) + scrapeBadge + bountyBadge + '</div>' +
               '<div class="player-corp">' + highlight(p.corporation || "", term) +
                 (p.alliance ? ' · ' + highlight(p.alliance, term) : "") + '</div>' +
             '</div>' +
@@ -296,6 +359,364 @@ $(function () {
     return '<div class="stat-box"><div class="stat-label">' + escapeHtml(label) +
       '</div><div class="stat-value ' + (valueClass || "") + '">' + value + '</div>' +
       (sub ? '<div class="stat-sub">' + escapeHtml(sub) + '</div>' : "") + '</div>';
+  }
+
+  /* ============================================================
+     BOUNTY SECTION (detail panel)
+     Shows total bounty, expandable contributor list with contact
+     info, and a line chart of bounty value history.
+     ============================================================ */
+  function buildBountySection(p) {
+    var myBounties = bountiesForPlayer(p.id);
+    var total = myBounties.reduce(function (s, b) { return s + (Number(b.amount) || 0); }, 0);
+    var count = myBounties.length;
+
+    if (total <= 0) {
+      var noBountyAdmin = isAdmin
+        ? '<button class="admin-btn primary bounty-empty-add" data-id="' + p.id +
+          '">🪸 Place a bounty</button>'
+        : "";
+      return '<div class="bounty-section">' +
+        '<div class="bounty-box no-bounty">' +
+          '<div class="bounty-box-main">' +
+            '<span class="bounty-label">Bounty</span>' +
+            '<span class="bounty-amount">No active bounty</span>' +
+          '</div>' +
+          '<div class="bounty-box-side">' + noBountyAdmin + '</div>' +
+        '</div></div>';
+    }
+
+    // Build the list of contributors (clickable to reveal contact info)
+    var contributorsHtml = myBounties.map(function (b) {
+      var contactHtml;
+      if (b.is_masked) {
+        contactHtml =
+          '<div class="bounty-contact masked">' +
+            '<span class="contact-name">Anonymous Client</span>' +
+            '<span class="contact-label">Identity protected</span>' +
+            '<span class="contact-row"><span class="ck">Broker:</span> ' + escapeHtml(b.broker_name || "Unknown") + '</span>' +
+            '<span class="contact-row"><span class="ck">Discord:</span> ' + escapeHtml(b.broker_discord || "\u2014") + '</span>' +
+          '</div>';
+      } else {
+        contactHtml =
+          '<div class="bounty-contact">' +
+            '<span class="contact-name">' + escapeHtml(b.issuer_name || "Unknown") + '</span>' +
+            (b.issuer_corp ? '<span class="contact-row"><span class="ck">Corp:</span> ' + escapeHtml(b.issuer_corp) + '</span>' : "") +
+            '<span class="contact-row"><span class="ck">Discord:</span> ' + escapeHtml(b.issuer_discord || "\u2014") + '</span>' +
+          '</div>';
+      }
+
+      var maskedBadge = b.is_masked ? '<span class="masked-badge">MASKED</span>' : "";
+      var adminBtns = isAdmin
+        ? '<div class="bounty-contrib-actions">' +
+          '<button class="admin-btn small" data-bounty-edit="' + b.id + '" data-player="' + p.id + '">\u270e Edit</button>' +
+          '<button class="admin-btn small danger" data-bounty-del="' + b.id + '" data-player="' + p.id + '">\u00d7</button>' +
+          '</div>'
+        : "";
+
+      return '<div class="bounty-contrib" data-bid="' + b.id + '">' +
+        '<div class="bounty-contrib-head">' +
+          '<div class="bounty-contrib-left">' +
+            '<span class="bounty-contrib-amount">' + formatIsk(b.amount) + ' ISK</span>' +
+            maskedBadge +
+          '</div>' +
+          '<span class="bounty-contrib-toggle">contact info \u25be</span>' +
+        '</div>' +
+        '<div class="bounty-contrib-body" style="display:none;">' +
+          contactHtml +
+          adminBtns +
+        '</div>' +
+      '</div>';
+    }).join("");
+
+    // Chart container (canvas drawn after render)
+    var chartHtml = '<div class="bounty-chart-wrap" id="bountyChartWrap_' + p.id + '">' +
+      '<div class="bounty-chart-title">Bounty value over time</div>' +
+      '<canvas class="bounty-chart" id="bountyChart_' + p.id + '" width="520" height="140"></canvas>' +
+    '</div>';
+
+    var addBtn = isAdmin
+      ? '<button class="admin-btn primary bounty-add-btn" data-id="' + p.id + '">+ Add bounty</button>'
+      : "";
+
+    return '<div class="bounty-section">' +
+      '<div class="bounty-box has-bounty" id="bountyBox_' + p.id + '">' +
+        '<div class="bounty-box-main">' +
+          '<span class="bounty-label">🪸 Total Bounty</span>' +
+          '<span class="bounty-amount">' + formatIsk(total) + ' ISK</span>' +
+          '<span class="bounty-contrib-count">' + count + ' contributor' + (count === 1 ? "" : "s") + '</span>' +
+        '</div>' +
+        '<div class="bounty-box-side">' + addBtn + '</div>' +
+      '</div>' +
+      '<div class="bounty-contrib-list">' + contributorsHtml + '</div>' +
+      chartHtml +
+    '</div>';
+  }
+
+  /* ---- bounty chart (canvas, no external libs) ---- */
+  function drawBountyChart(playerId, playerName) {
+    var canvas = document.getElementById("bountyChart_" + playerId);
+    if (!canvas) return;
+    var ctx = canvas.getContext("2d");
+    var W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+
+    var points = (BOUNTY_HISTORY[playerName] || []).slice();
+    if (points.length === 0) {
+      ctx.fillStyle = "rgba(159,168,217,0.5)";
+      ctx.font = "13px Consolas, monospace";
+      ctx.textAlign = "center";
+      ctx.fillText("No bounty history yet", W / 2, H / 2);
+      return;
+    }
+
+    // Sort by timestamp ascending
+    points.sort(function (a, b) { return a.ts < b.ts ? -1 : 1; });
+    // Always start the chart at zero so the rise is visible
+    var pts = [{ ts: points[0].ts, total: 0 }].concat(points);
+
+    var maxVal = Math.max.apply(null, pts.map(function (p) { return p.total; }));
+    if (maxVal <= 0) maxVal = 1;
+
+    var padL = 70, padR = 20, padT = 16, padB = 28;
+    var plotW = W - padL - padR;
+    var plotH = H - padT - padB;
+
+    // Grid + axis labels
+    ctx.strokeStyle = "rgba(159,168,217,0.12)";
+    ctx.lineWidth = 1;
+    ctx.fillStyle = "rgba(159,168,217,0.45)";
+    ctx.font = "10px Consolas, monospace";
+    ctx.textAlign = "right";
+    for (var g = 0; g <= 4; g++) {
+      var y = padT + (plotH / 4) * g;
+      ctx.beginPath();
+      ctx.moveTo(padL, y);
+      ctx.lineTo(W - padR, y);
+      ctx.stroke();
+      var val = maxVal * (1 - g / 4);
+      ctx.fillText(formatIsk(val), padL - 6, y + 3);
+    }
+
+    // X-axis: time labels (first & last)
+    ctx.textAlign = "center";
+    if (pts.length >= 1) {
+      ctx.fillText((pts[0].ts || "").slice(0, 10), padL + 10, H - 8);
+      ctx.fillText((pts[pts.length - 1].ts || "").slice(0, 10), W - padR - 10, H - 8);
+    }
+
+    // Line
+    var goldFill = ctx.createLinearGradient(0, padT, 0, padT + plotH);
+    goldFill.addColorStop(0, "rgba(241,196,15,0.25)");
+    goldFill.addColorStop(1, "rgba(241,196,15,0.02)");
+
+    if (pts.length === 1) {
+      // single point — draw a dot
+      var px = padL + plotW / 2;
+      var py = padT + plotH * (1 - pts[0].total / maxVal);
+      ctx.fillStyle = "#f1c40f";
+      ctx.beginPath();
+      ctx.arc(px, py, 4, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      // area fill
+      ctx.beginPath();
+      ctx.moveTo(padL, padT + plotH);
+      pts.forEach(function (pt, i) {
+        var x = padL + (plotW / (pts.length - 1)) * i;
+        var y = padT + plotH * (1 - pt.total / maxVal);
+        ctx.lineTo(x, y);
+      });
+      ctx.lineTo(padL + plotW, padT + plotH);
+      ctx.closePath();
+      ctx.fillStyle = goldFill;
+      ctx.fill();
+
+      // line stroke
+      ctx.beginPath();
+      pts.forEach(function (pt, i) {
+        var x = padL + (plotW / (pts.length - 1)) * i;
+        var y = padT + plotH * (1 - pt.total / maxVal);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.strokeStyle = "#f1c40f";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // points
+      pts.forEach(function (pt, i) {
+        var x = padL + (plotW / (pts.length - 1)) * i;
+        var y = padT + plotH * (1 - pt.total / maxVal);
+        ctx.fillStyle = "#f1c40f";
+        ctx.beginPath();
+        ctx.arc(x, y, 3, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+  }
+
+  /* ============================================================
+     BOUNTY FORM (add / edit)
+     ============================================================ */
+  function openBountyForm(playerId, bountyId) {
+    if (!isAdmin) return;
+    bountyFormTargetId = playerId;
+    editingBountyId = bountyId || null;
+
+    var p = findPlayer(playerId);
+    if (!p) { toast("Pilot not found", "error"); return; }
+
+    // Existing bounty to edit, or blank
+    var b = bountyId
+      ? BOUNTIES.find(function (x) { return x.id === bountyId; })
+      : blankBounty(playerId, p.name);
+
+    if (bountyId && !b) { toast("Bounty not found", "error"); return; }
+
+    $("#bountyFormTitle").html(bountyId
+      ? '<span class="mt-icon">\u270e</span> Edit Bounty on ' + escapeHtml(p.name)
+      : '<span class="mt-icon">🪸</span> Add Bounty on ' + escapeHtml(p.name));
+    $("#bountyFormDelete").toggle(!!bountyId);
+    $("#bountyFormBody").html(buildBountyFormHtml(b));
+    // Show/hide broker fields based on masked toggle
+    updateBrokerVisibility();
+    openModal("bountyFormModal");
+  }
+
+  function blankBounty(playerId, playerName) {
+    return {
+      target_player_id: playerId,
+      target_name: playerName,
+      issuer_name: "", issuer_corp: "", issuer_discord: "",
+      broker_name: "", broker_discord: "",
+      is_masked: false, amount: 0
+    };
+  }
+
+  function buildBountyFormHtml(b) {
+    return (
+      '<div class="bounty-form">' +
+        '<div class="form-field"><label>Target pilot</label>' +
+          '<input type="text" id="bfTarget" value="' + escapeHtml(b.target_name) + '" readonly style="opacity:0.7;" />' +
+        '</div>' +
+        '<div class="form-row">' +
+          '<div class="form-field"><label>Bounty amount (ISK) <span class="req">*</span></label>' +
+            '<input type="number" id="bfAmount" min="0" step="1" value="' + (b.amount || 0) + '" /></div>' +
+        '</div>' +
+
+        '<div class="bounty-form-divider"></div>' +
+        '<div class="bounty-form-section-title">🕵 Issuer (the one paying)</div>' +
+
+        '<div class="form-row">' +
+          '<div class="form-field"><label>Issuer name <span class="req">*</span></label>' +
+            '<input type="text" id="bfIssuerName" value="' + escapeHtml(b.issuer_name) + '" placeholder="e.g. Dirtnap Jimmy" /></div>' +
+          '<div class="form-field"><label>Issuer corp</label>' +
+            '<input type="text" id="bfIssuerCorp" value="' + escapeHtml(b.issuer_corp) + '" placeholder="e.g. Hard Knocks Inc." /></div>' +
+        '</div>' +
+        '<div class="form-field"><label>Issuer Discord username</label>' +
+          '<input type="text" id="bfIssuerDiscord" value="' + escapeHtml(b.issuer_discord) + '" placeholder="e.g. dirtnap#0420" /></div>' +
+
+        '<div class="bounty-form-divider"></div>' +
+        '<div class="bounty-form-masked-row">' +
+          '<label class="bounty-checkbox-row">' +
+            '<input type="checkbox" id="bfMasked" ' + (b.is_masked ? "checked" : "") + ' /> ' +
+            '<span>Masked / anonymous client</span>' +
+          '</label>' +
+          '<div class="hint">If checked, the issuer\'s identity is hidden. A broker handles contact &amp; payment instead.</div>' +
+        '</div>' +
+
+        '<div class="bounty-form-broker-section" id="brokerSection">' +
+          '<div class="bounty-form-section-title">🎯 Broker (contact for masked bounties)</div>' +
+          '<div class="form-row">' +
+            '<div class="form-field"><label>Broker name</label>' +
+              '<input type="text" id="bfBrokerName" value="' + escapeHtml(b.broker_name) + '" placeholder="e.g. Kane Midfield" /></div>' +
+            '<div class="form-field"><label>Broker Discord username</label>' +
+              '<input type="text" id="bfBrokerDiscord" value="' + escapeHtml(b.broker_discord) + '" placeholder="e.g. kane_mid#7788" /></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  function updateBrokerVisibility() {
+    var masked = $("#bfMasked").is(":checked");
+    // When masked, hide issuer fields and show broker; when not masked, show issuer and hide broker
+    if (masked) {
+      $("#brokerSection").show();
+    } else {
+      $("#brokerSection").hide();
+    }
+  }
+
+  function collectBountyForm() {
+    var amount = parseFloat($("#bfAmount").val()) || 0;
+    var issuerName = $("#bfIssuerName").val().trim();
+    var masked = $("#bfMasked").is(":checked");
+
+    if (amount <= 0) { $("#bfAmount").focus(); toast("Bounty amount must be greater than 0", "error"); return null; }
+    if (!masked && !issuerName) { $("#bfIssuerName").focus(); toast("Issuer name is required (or check masked)", "error"); return null; }
+    if (masked && !issuerName) issuerName = "Anonymous Client";
+
+    var p = findPlayer(bountyFormTargetId);
+    return {
+      target_player_id: bountyFormTargetId,
+      target_name: p ? p.name : $("#bfTarget").val().trim(),
+      issuer_name: issuerName,
+      issuer_corp: $("#bfIssuerCorp").val().trim(),
+      issuer_discord: $("#bfIssuerDiscord").val().trim(),
+      broker_name: $("#bfBrokerName").val().trim(),
+      broker_discord: $("#bfBrokerDiscord").val().trim(),
+      is_masked: masked,
+      amount: amount
+    };
+  }
+
+  function saveBountyFromForm() {
+    var b = collectBountyForm();
+    if (!b) return;
+    saveBounty(b, editingBountyId)
+      .done(function (resp) {
+        if (resp && resp.ok) {
+          toast(editingBountyId ? "Updated bounty" : "Added bounty on " + b.target_name, "success");
+          closeModal("bountyFormModal");
+          refreshBounties();
+        } else {
+          toast("Error: " + ((resp && resp.error) || "unknown"), "error");
+        }
+      })
+      .fail(function (xhr) {
+        var msg = "Could not save bounty";
+        try { var j = JSON.parse(xhr.responseText); if (j.error) msg = j.error; } catch (e) {}
+        toast(msg, "error");
+      });
+  }
+
+  function askDeleteBounty(bountyId, playerId) {
+    var p = findPlayer(playerId);
+    pendingDeleteId = playerId; // reuse confirm modal
+    $("#confirmMsg").html(
+      'Remove this bounty' + (p ? ' on <span class="confirm-name">' + escapeHtml(p.name) + '</span>' : "") +
+      '? <strong>This cannot be undone.</strong>' +
+      '<input type="hidden" id="confirmBountyId" value="' + bountyId + '" />'
+    );
+    openModal("confirmModal");
+  }
+
+  function confirmDeleteBounty() {
+    var bountyId = parseInt($("#confirmBountyId").val(), 10);
+    if (!bountyId) { confirmDelete(); return; } // fall through to player delete if no bounty id
+    deleteBountyRemote(bountyId)
+      .done(function () {
+        toast("Removed bounty", "warn");
+        closeModal("confirmModal");
+        refreshBounties();
+      })
+      .fail(function (xhr) {
+        var msg = "Could not delete bounty";
+        try { var j = JSON.parse(xhr.responseText); if (j.error) msg = j.error; } catch (e) {}
+        toast(msg, "error");
+      });
   }
 
   function renderDetail(id) {
@@ -347,16 +768,13 @@ $(function () {
       altsHtml = '<p style="color:var(--text-faint);font-size:13px;">No known alts on file.</p>';
     }
 
-    var bountyHtml = (p.bounty && p.bounty > 0)
-      ? '<div class="bounty-box"><span class="bounty-label">🩸 Active Bounty</span>' +
-        '<span class="bounty-amount">' + formatIsk(p.bounty) + ' ISK</span></div>'
-      : '<div class="bounty-box no-bounty"><span class="bounty-label">Bounty</span>' +
-        '<span class="bounty-amount">No active bounty</span></div>';
+        var bountyHtml = buildBountySection(p);
 
     // admin-only action row
     var adminActions = isAdmin
       ? '<div class="detail-admin-actions">' +
         '<button class="admin-btn" id="detailEditBtn" data-id="' + p.id + '">✎ Edit Pilot</button>' +
+        '<button class="admin-btn" id="detailBountyBtn" data-id="' + p.id + '">🪸 Add Bounty</button>' +
         '<button class="admin-btn" id="detailScrapeBtn" data-id="' + p.id + '">↻ Fetch from echoes.mobi</button>' +
         '<button class="admin-btn danger" id="detailDeleteBtn" data-id="' + p.id + '">🗑 Remove</button>' +
         '</div>'
@@ -395,6 +813,11 @@ $(function () {
 
     $("#detailEmpty").hide();
     $("#detailContent").html(html).show();
+
+    // Draw the bounty history chart if present
+    if (bountiesForPlayer(p.id).length > 0) {
+      setTimeout(function () { drawBountyChart(p.id, p.name); }, 30);
+    }
   }
 
   /* ============================================================
@@ -478,7 +901,7 @@ $(function () {
       id: nextId(), name: "", corporation: "", alliance: "", faction: "",
       region: "", tags: [], threatLevel: 5, killCount: 0, lossCount: 0,
       iskDestroyed: 0, iskLost: 0, efficiency: 50, lastSeen: todayStr(),
-      status: "Active", typicalShips: [], notes: "", knownAlts: [], bounty: 0,
+      status: "Active", typicalShips: [], notes: "", knownAlts: [],
       scrapedAt: null
     };
   }
@@ -536,12 +959,9 @@ $(function () {
         '<div class="hint">Click tags to toggle. Selected tags get highlighted.</div>' +
       '</div>' +
 
-      '<div class="form-row">' +
-        '<div class="form-field"><label>Threat level (0–10)</label>' +
-          '<input type="number" id="fThreat" min="0" max="10" step="1" value="' + (p.threatLevel || 0) + '" /></div>' +
-        '<div class="form-field"><label>Bounty (ISK)</label>' +
-          '<input type="number" id="fBounty" min="0" step="1" value="' + (p.bounty || 0) + '" /></div>' +
-      '</div>' +
+      '<div class="form-field"><label>Threat level (0–10)</label>' +
+        '<input type="number" id="fThreat" min="0" max="10" step="1" value="' + (p.threatLevel || 0) + '" /></div>' +
+      '<div class="hint" style="margin-bottom:12px;">Bounties are managed separately — add or edit them from the pilot\'s profile page.</div>' +
 
       '<div class="form-row">' +
         '<div class="form-field"><label>Kills</label>' +
@@ -764,8 +1184,7 @@ $(function () {
       status: $("#fStatus").val() || "Active",
       typicalShips: collectShips(),
       notes: $("#fNotes").val().trim() || "",
-      knownAlts: alts,
-      bounty: parseFloat($("#fBounty").val()) || 0
+      knownAlts: alts
     };
     // preserve scrapedAt if we just re-scraped or editing existing
     if (lastScrapeData && lastScrapeData.fetchedAt) {
@@ -808,6 +1227,11 @@ $(function () {
   }
 
   function confirmDelete() {
+    // If this is a bounty deletion (confirmBountyId hidden field present), route there
+    if ($("#confirmBountyId").length) {
+      confirmDeleteBounty();
+      return;
+    }
     if (!pendingDeleteId) return;
     var p = findPlayer(pendingDeleteId);
     PLAYERS = PLAYERS.filter(function (x) { return x.id !== pendingDeleteId; });
@@ -954,6 +1378,50 @@ $(function () {
     askDelete($(this).data("id"));
   });
 
+  /* ---- bounty event wiring ---- */
+  // detail-panel "Add Bounty" button
+  $(document).on("click", "#detailBountyBtn", function () {
+    openBountyForm($(this).data("id"), null);
+  });
+  // bounty-box "add bounty" / empty "place a bounty" buttons
+  $(document).on("click", ".bounty-add-btn, .bounty-empty-add", function () {
+    openBountyForm($(this).data("id"), null);
+  });
+  // expand/collapse a contributor's contact info
+  $(document).on("click", ".bounty-contrib-head", function (e) {
+    // ignore clicks on the admin buttons inside (they're in the body, so fine)
+    var $body = $(this).siblings(".bounty-contrib-body");
+    var $toggle = $(this).find(".bounty-contrib-toggle");
+    if ($body.is(":visible")) {
+      $body.slideUp(150);
+      $toggle.html("contact info \u25be");
+    } else {
+      $body.slideDown(150);
+      $toggle.html("contact info \u25b4");
+    }
+  });
+  // edit a bounty
+  $(document).on("click", "[data-bounty-edit]", function (e) {
+    e.stopPropagation();
+    openBountyForm($(this).data("player"), $(this).data("bounty-edit"));
+  });
+  // delete a bounty
+  $(document).on("click", "[data-bounty-del]", function (e) {
+    e.stopPropagation();
+    askDeleteBounty($(this).data("bounty-del"), $(this).data("player"));
+  });
+  // bounty form: masked toggle
+  $(document).on("change", "#bfMasked", updateBrokerVisibility);
+  // bounty form save
+  $("#bountyFormSave").on("click", saveBountyFromForm);
+  // bounty form delete (when editing)
+  $("#bountyFormDelete").on("click", function () {
+    if (editingBountyId && bountyFormTargetId) {
+      closeModal("bountyFormModal");
+      askDeleteBounty(editingBountyId, bountyFormTargetId);
+    }
+  });
+
   /* ============================================================
      INIT
      ============================================================ */
@@ -965,6 +1433,8 @@ $(function () {
       .done(function (data) {
         DATA = data;
         TAG_CATS = data.tagCategories || {};
+        BOUNTIES = data.bounties || [];
+        BOUNTY_HISTORY = data.bountyHistory || {};
         // The server file is the source of truth (edits are written back
         // to players.json by POST /api/players). We only fall back to a
         // localStorage copy if the JSON looks stale/empty (static-host
