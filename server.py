@@ -111,7 +111,7 @@ def db_init():
     cur.execute("""
         CREATE TABLE IF NOT EXISTS players (
             id   VARCHAR(64) PRIMARY KEY,
-            data JSON NOT NULL
+            data LONGTEXT NOT NULL
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     """)
     cur.execute("""
