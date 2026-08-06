@@ -142,7 +142,7 @@ EI.loadData = function () {
     })
     .fail(function () {
       $("#resultsCount").html(
-        '<span style="color:var(--danger)">⚠ Failed to load pilot database.</span><br>' +
+        '<span style="color:var(--danger)"><i class="fas fa-triangle-exclamation"></i> Failed to load pilot database.</span><br>' +
         '<span style="font-size:11px;color:var(--text-faint)">' +
         "Serve the project via server.py (python3 server.py) so the JSON loads.</span>"
       );

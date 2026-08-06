@@ -52,7 +52,7 @@ EI.renderResults = function () {
     var msg = EI.isAdmin
       ? '<div class="admin-empty-hint">No pilots in the database.<br>' +
         '<button class="admin-btn primary" onclick="document.getElementById(\'addPlayerBtn\').click()">+ Add the first pilot</button></div>'
-      : '<div class="no-results"><div class="nr-icon">🛰️</div>' +
+      : '<div class="no-results"><div class="nr-icon"><i class="fas fa-satellite"></i></div>' +
         "<p>No pilots match your search.<br>Try a different name or clear your filters.</p></div>";
     $list.html(msg);
     return;
@@ -85,7 +85,7 @@ EI.renderResults = function () {
 
     var bountyTotal = EI.totalBountyForPlayer(p.id);
     var bountyBadge = bountyTotal > 0
-      ? '<span class="card-bounty-badge" title="Active bounty: ' + EI.formatIsk(bountyTotal) + ' ISK">🦸 ' + EI.formatIsk(bountyTotal) + '</span>'
+      ? '<span class="card-bounty-badge" title="Active bounty: ' + EI.formatIsk(bountyTotal) + ' ISK"><i class="fas fa-mask"></i> ' + EI.formatIsk(bountyTotal) + '</span>'
       : "";
 
     html +=

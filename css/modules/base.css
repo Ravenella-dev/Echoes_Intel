@@ -89,3 +89,35 @@ body::before {
   opacity: 0.7;
 }
 
+
+/* ============================================================
+   Font Awesome icon tweaks
+   ------------------------------------------------------------
+   The app uses Font Awesome <i class="fas fa-..."> icons instead
+   of unicode emoji. FA icons size with font-size (just like text),
+   so the existing font-size rules on .mt-icon, .sh-icon, .ticon,
+   .search-icon, .empty-icon and .nr-icon already control them.
+
+   These rules just add a little breathing room so icons inside
+   buttons and headings don't crowd the text next to them.
+   ============================================================ */
+
+/* icons that sit before a label, e.g.  [✎ Edit Pilot] */
+.admin-btn .fa-solid,
+.admin-btn i.fas { margin-right: 7px; }
+
+/* standalone icon spans (modal titles, section headings, empty states) */
+.mt-icon i.fas,
+.sh-icon i.fas { font-size: 1em; }
+
+/* tag-chip icons (mini + full) */
+.ticon i.fas { font-size: 1em; }
+
+/* separators between corp / alliance (chevron) keep their dim colour */
+.sep i.fas { font-size: 0.8em; opacity: 0.7; }
+
+/* the big satellite icon in the empty-detail state */
+.empty-icon i.fas { font-size: 72px; opacity: 0.3; }
+
+/* the satellite icon shown when a search returns nothing */
+.nr-icon i.fas { font-size: 48px; margin-bottom: 14px; opacity: 0.4; }

@@ -96,20 +96,33 @@ EI.hexA = function (hex, alpha) {
   return "rgba(" + r + "," + g + "," + b + "," + alpha + ")";
 };
 
+/* Render a tag-category icon as a Font Awesome <i> element.
+   Tag categories store the Font Awesome icon name (e.g. "anchor"),
+   so we wrap it in <i class="fas fa-anchor"></i>. If for some reason
+   the value still contains a raw unicode symbol, we return it as-is. */
+EI.tagIcon = function (iconName) {
+  if (!iconName) return "";
+  // FA icon names are just letters/dashes (e.g. "triangle-exclamation").
+  if (/^[a-z0-9-]+$/.test(iconName)) {
+    return '<i class="fas fa-' + iconName + '"></i>';
+  }
+  return iconName; // fallback: old raw symbol
+};
+
 // Build a small tag chip (used in the pilot list cards).
 EI.miniTag = function (tagName) {
-  var cat = EI.TAG_CATS[tagName] || { color: "#7f8c8d", icon: "•" };
+  var cat = EI.TAG_CATS[tagName] || { color: "#7f8c8d", icon: "circle-dot" };
   return '<span class="mini-tag" style="color:' + cat.color + ';border-color:' +
-    EI.hexA(cat.color, 0.3) + '"><span class="ticon">' + (cat.icon || "") +
+    EI.hexA(cat.color, 0.3) + '"><span class="ticon">' + EI.tagIcon(cat.icon) +
     '</span>' + EI.escapeHtml(tagName) + '</span>';
 };
 
 // Build a larger tag chip (used in the detail panel).
 EI.fullTag = function (tagName) {
-  var cat = EI.TAG_CATS[tagName] || { color: "#7f8c8d", icon: "•" };
+  var cat = EI.TAG_CATS[tagName] || { color: "#7f8c8d", icon: "circle-dot" };
   return '<span class="full-tag" style="background:' + EI.hexA(cat.color, 0.13) +
     ';border:1px solid ' + EI.hexA(cat.color, 0.4) + ';color:' + cat.color +
-    '"><span class="ticon">' + (cat.icon || "") + '</span>' +
+    '"><span class="ticon">' + EI.tagIcon(cat.icon) + '</span>' +
     EI.escapeHtml(tagName) + '</span>';
 };
 

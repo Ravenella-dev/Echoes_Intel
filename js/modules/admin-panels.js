@@ -74,7 +74,7 @@ EI.renderChangelog = function (entries) {
       ? ' <span style="color:var(--text-faint)">(reverted)</span>'
       : '';
     var revertBtn = (!e.reverted)
-      ? '<button class="admin-btn small" data-revert="' + e.id + '">↺ Revert</button>'
+      ? '<button class="admin-btn small" data-revert="' + e.id + '"><i class="fas fa-rotate-left"></i> Revert</button>'
       : "";
     var summary = "";
     if (e.action === "edit" && e.snapshot_after) {
@@ -136,7 +136,7 @@ EI.renderUsers = function (users, levels) {
     var isSelf = (u.username === EI.currentUser.username);
     var isMaster = (u.access_level === "master");
     var delBtn = (!isMaster && !isSelf)
-      ? '<button class="admin-btn small danger" data-del-user="' + u.id + '">×</button>'
+      ? '<button class="admin-btn small danger" data-del-user="' + u.id + '"><i class="fas fa-xmark"></i></button>'
       : '<span style="color:var(--text-faint)">—</span>';
     var pwBtn = '<button class="admin-btn small" data-pw-user="' + u.id + '">Set password</button>';
     var lvlSelect = '<select data-lvl-user="' + u.id + '"' +

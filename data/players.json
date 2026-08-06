@@ -3,119 +3,119 @@
   "tagCategories": {
     "Dangerous": {
       "color": "#e74c3c",
-      "icon": "⚠"
+      "icon": "triangle-exclamation"
     },
     "Moderate": {
       "color": "#f39c12",
-      "icon": "●"
+      "icon": "circle"
     },
     "Weak": {
       "color": "#27ae60",
-      "icon": "○"
+      "icon": "ring"
     },
     "Main Account": {
       "color": "#3498db",
-      "icon": "★"
+      "icon": "star"
     },
     "Alt": {
       "color": "#95a5a6",
-      "icon": "☆"
+      "icon": "clone"
     },
     "High Value Target": {
       "color": "#e91e63",
-      "icon": "◆"
+      "icon": "gem"
     },
     "Medium Value Target": {
       "color": "#9b59b6",
-      "icon": "◇"
+      "icon": "diamond"
     },
     "Low Value Target": {
       "color": "#7f8c8d",
-      "icon": "·"
+      "icon": "minus"
     },
     "Supercapital Pilot": {
       "color": "#c0392b",
-      "icon": "⚓"
+      "icon": "anchor"
     },
     "Capital Pilot": {
       "color": "#d35400",
-      "icon": "⚓"
+      "icon": "anchor"
     },
     "Solo PVPer": {
       "color": "#8e44ad",
-      "icon": "⚔"
+      "icon": "user-ninja"
     },
     "Small Gang FC": {
       "color": "#16a085",
-      "icon": "⚑"
+      "icon": "flag"
     },
     "Fleet Pilot": {
       "color": "#3498db",
-      "icon": "▶"
+      "icon": "play"
     },
     "Baiter": {
       "color": "#e67e22",
-      "icon": "✦"
+      "icon": "burst"
     },
     "Bounty Hunter": {
       "color": "#c0392b",
-      "icon": "₿"
+      "icon": "skull"
     },
     "Stealth Bomber Pilot": {
       "color": "#2c3e50",
-      "icon": "✺"
+      "icon": "bomb"
     },
     "Recon Pilot": {
       "color": "#16a085",
-      "icon": "◉"
+      "icon": "binoculars"
     },
     "Tackle Specialist": {
       "color": "#27ae60",
-      "icon": "⊕"
+      "icon": "crosshairs"
     },
     "Logistics Pilot": {
       "color": "#2980b9",
-      "icon": "✚"
+      "icon": "plus"
     },
     "Capital Hotdropper": {
       "color": "#c0392b",
-      "icon": "⚡"
+      "icon": "bolt"
     },
     "Structure Buster": {
       "color": "#d35400",
-      "icon": "✸"
+      "icon": "hammer"
     },
     "Explorer": {
       "color": "#1abc9c",
-      "icon": "⌖"
+      "icon": "compass"
     },
     "Non-Combatant": {
       "color": "#bdc3c7",
-      "icon": "✕"
+      "icon": "user-slash"
     },
     "Industrialist": {
       "color": "#7f8c8d",
-      "icon": "⚒"
+      "icon": "screwdriver-wrench"
     },
     "Miner": {
       "color": "#95a5a6",
-      "icon": "⛏"
+      "icon": "helmet-safety"
     },
     "Market Trader": {
       "color": "#f39c12",
-      "icon": "$"
+      "icon": "dollar-sign"
     },
     "PVE'er": {
       "color": "#1abc9c",
-      "icon": "△"
+      "icon": "mountain"
     },
     "Newbie": {
       "color": "#2ecc71",
-      "icon": "?"
+      "icon": "circle-question"
     },
     "Fodder": {
       "color": "#7f8c8d",
-      "icon": "×"
+      "icon": "skull-crossbones"
     }
   },
   "savedAt": "2026-08-04T23:35:35.584171+00:00"

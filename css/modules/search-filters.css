@@ -6,8 +6,8 @@
 
      .search-wrap   -> the container around the search box
      .search-input  -> the text field itself
-     .search-icon   -> the 🔍 icon on the left
-     .search-clear  -> the × button that appears when typing
+     .search-icon   -> the Font Awesome magnifying-glass icon on the left
+     .search-clear  -> the Font Awesome xmark button that appears when typing
      .filter-bar    -> the row that holds the filter chips
      .filter-chip   -> one clickable filter button
                        (.active = currently turned on)

@@ -36,7 +36,7 @@ EI.buildBountySection = function (p) {
   if (total <= 0) {
     var noBountyAdmin = EI.isAdmin
       ? '<button class="admin-btn primary bounty-empty-add" data-id="' + p.id +
-        '">🦸 Place a bounty</button>'
+        '"><i class="fas fa-mask"></i> Place a bounty</button>'
       : "";
     return '<div class="bounty-section">' +
       '<div class="bounty-box no-bounty">' +
@@ -71,8 +71,8 @@ EI.buildBountySection = function (p) {
     var maskedBadge = b.is_masked ? '<span class="masked-badge">MASKED</span>' : "";
     var adminBtns = EI.isAdmin
       ? '<div class="bounty-contrib-actions">' +
-        '<button class="admin-btn small" data-bounty-edit="' + b.id + '" data-player="' + p.id + '">✎ Edit</button>' +
-        '<button class="admin-btn small danger" data-bounty-del="' + b.id + '" data-player="' + p.id + '">×</button>' +
+        '<button class="admin-btn small" data-bounty-edit="' + b.id + '" data-player="' + p.id + '"><i class="fas fa-pen"></i> Edit</button>' +
+        '<button class="admin-btn small danger" data-bounty-del="' + b.id + '" data-player="' + p.id + '"><i class="fas fa-xmark"></i></button>' +
         '</div>'
       : "";
 
@@ -82,7 +82,7 @@ EI.buildBountySection = function (p) {
           '<span class="bounty-contrib-amount">' + EI.formatIsk(b.amount) + ' ISK</span>' +
           maskedBadge +
         '</div>' +
-        '<span class="bounty-contrib-toggle">contact info ▾</span>' +
+        '<span class="bounty-contrib-toggle">contact info <i class="fas fa-caret-down"></i></span>' +
       '</div>' +
       '<div class="bounty-contrib-body" style="display:none;">' +
         contactHtml +
@@ -104,7 +104,7 @@ EI.buildBountySection = function (p) {
   return '<div class="bounty-section">' +
     '<div class="bounty-box has-bounty" id="bountyBox_' + p.id + '">' +
       '<div class="bounty-box-main">' +
-        '<span class="bounty-label">🦸 Total Bounty</span>' +
+        '<span class="bounty-label"><i class="fas fa-mask"></i> Total Bounty</span>' +
         '<span class="bounty-amount">' + EI.formatIsk(total) + ' ISK</span>' +
         '<span class="bounty-contrib-count">' + count + ' contributor' + (count === 1 ? "" : "s") + '</span>' +
       '</div>' +
@@ -234,7 +234,7 @@ EI.renderDetail = function (id) {
     ? '<a class="scraped-badge' + (EI.isStale(p.scrapedAt) ? " stale" : "") +
       '" href="' + mobiUrl + '" target="_blank" rel="noopener noreferrer"' +
       ' title="View ' + EI.escapeHtml(p.name) + ' on echoes.mobi · stats scraped ' + EI.escapeHtml(p.scrapedAt) +
-      '"> ↻ echoes.mobi · ' + EI.escapeHtml((p.scrapedAt || "").slice(0, 10)) + '</a>'
+      '"> <i class="fas fa-arrows-rotate"></i> echoes.mobi · ' + EI.escapeHtml((p.scrapedAt || "").slice(0, 10)) + '</a>'
     : "";
 
   var statsHtml =
@@ -255,7 +255,7 @@ EI.renderDetail = function (id) {
     }).join("");
     shipsHtml +=
       '<div class="ship-card"><div class="ship-card-head">' +
-      '<span class="ship-name">🚀 ' + EI.escapeHtml(s.ship) + '</span>' +
+      '<span class="ship-name"><i class="fas fa-rocket"></i> ' + EI.escapeHtml(s.ship) + '</span>' +
       '<span class="ship-role">' + EI.escapeHtml(s.role || "") + '</span></div>' +
       '<div class="fitting-list">' + fitHtml + '</div></div>';
   });
@@ -276,10 +276,10 @@ EI.renderDetail = function (id) {
   var canEdit = EI.hasAccess("editor");
   var adminActions = canEdit
     ? '<div class="detail-admin-actions">' +
-      '<button class="admin-btn" id="detailEditBtn" data-id="' + p.id + '">✎ Edit Pilot</button>' +
-      '<button class="admin-btn" id="detailBountyBtn" data-id="' + p.id + '">🦸 Add Bounty</button>' +
-      '<button class="admin-btn" id="detailScrapeBtn" data-id="' + p.id + '">↻ Fetch from echoes.mobi</button>' +
-      '<button class="admin-btn danger" id="detailDeleteBtn" data-id="' + p.id + '">🗑 Remove</button>' +
+      '<button class="admin-btn" id="detailEditBtn" data-id="' + p.id + '"><i class="fas fa-pen"></i> Edit Pilot</button>' +
+      '<button class="admin-btn" id="detailBountyBtn" data-id="' + p.id + '"><i class="fas fa-mask"></i> Add Bounty</button>' +
+      '<button class="admin-btn" id="detailScrapeBtn" data-id="' + p.id + '"><i class="fas fa-arrows-rotate"></i> Fetch from echoes.mobi</button>' +
+      '<button class="admin-btn danger" id="detailDeleteBtn" data-id="' + p.id + '"><i class="fas fa-trash"></i> Remove</button>' +
       '</div>'
     : "";
 
@@ -290,8 +290,8 @@ EI.renderDetail = function (id) {
         '<span class="detail-status ' + statusClass + '">' + EI.escapeHtml(p.status || "Active") + '</span>' +
       '</div>' +
       '<div class="detail-affil">' + EI.escapeHtml(p.corporation || "—") +
-        (p.alliance ? ' <span class="sep">›</span> ' + EI.escapeHtml(p.alliance) :
-          ' <span class="sep">›</span> <em>no alliance</em>') + '</div>' +
+        (p.alliance ? ' <span class="sep"><i class="fas fa-chevron-right"></i></span> ' + EI.escapeHtml(p.alliance) :
+          ' <span class="sep"><i class="fas fa-chevron-right"></i></span> <em>no alliance</em>') + '</div>' +
       '<div class="detail-meta">' +
         (p.faction ? 'Faction: ' + EI.escapeHtml(p.faction) + ' · ' : "") +
         'Region: ' + EI.escapeHtml(p.region || "Unknown") +
@@ -306,11 +306,11 @@ EI.renderDetail = function (id) {
     '</div>' +
     '<div class="stat-grid">' + statsHtml + '</div>' +
     bountyHtml +
-    '<div class="section-heading"><span class="sh-icon">🚀</span> Typical Ships &amp; Fittings</div>' +
+    '<div class="section-heading"><span class="sh-icon"><i class="fas fa-rocket"></i></span> Typical Ships &amp; Fittings</div>' +
     shipsHtml +
-    '<div class="section-heading"><span class="sh-icon">👥</span> Known Alts</div>' +
+    '<div class="section-heading"><span class="sh-icon"><i class="fas fa-users"></i></span> Known Alts</div>' +
     altsHtml +
-    '<div class="section-heading"><span class="sh-icon">📝</span> Field Notes</div>' +
+    '<div class="section-heading"><span class="sh-icon"><i class="fas fa-file-pen"></i></span> Field Notes</div>' +
     '<div class="notes-box">' + EI.escapeHtml(p.notes || "No notes on file.") + '</div>' +
     adminActions;
 

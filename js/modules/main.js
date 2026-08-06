@@ -174,10 +174,10 @@ $(function () {
     var $toggle = $(this).find(".bounty-contrib-toggle");
     if ($body.is(":visible")) {
       $body.slideUp(150);
-      $toggle.html("contact info ▾");
+      $toggle.html('contact info <i class="fas fa-caret-down"></i>');
     } else {
       $body.slideDown(150);
-      $toggle.html("contact info ▴");
+      $toggle.html('contact info <i class="fas fa-caret-up"></i>');
     }
   });
 
@@ -219,14 +219,14 @@ $(function () {
           EI.loadData(); // refresh so the UI reflects the reversion
         } else {
           EI.toast((resp && resp.error) || "Revert failed", "error");
-          $btn.prop("disabled", false).text("↺ Revert");
+          $btn.prop("disabled", false).html('<i class="fas fa-rotate-left"></i> Revert');
         }
       })
       .fail(function (xhr) {
         var msg = "Revert failed.";
         try { var j = JSON.parse(xhr.responseText); if (j && j.error) msg = j.error; } catch (e) {}
         EI.toast(msg, "error");
-        $btn.prop("disabled", false).text("↺ Revert");
+        $btn.prop("disabled", false).html('<i class="fas fa-rotate-left"></i> Revert');
       });
   });
 

@@ -35,8 +35,8 @@ EI.openBountyForm = function (playerId, bountyId) {
   if (bountyId && !b) { EI.toast("Bounty not found", "error"); return; }
 
   $("#bountyFormTitle").html(bountyId
-    ? '<span class="mt-icon">✎</span> Edit Bounty on ' + EI.escapeHtml(p.name)
-    : '<span class="mt-icon">🦸</span> Add Bounty on ' + EI.escapeHtml(p.name));
+    ? '<span class="mt-icon"><i class="fas fa-pen"></i></span> Edit Bounty on ' + EI.escapeHtml(p.name)
+    : '<span class="mt-icon"><i class="fas fa-mask"></i></span> Add Bounty on ' + EI.escapeHtml(p.name));
   $("#bountyFormDelete").toggle(!!bountyId);
   $("#bountyFormBody").html(EI.buildBountyFormHtml(b));
   EI.updateBrokerVisibility();
@@ -67,7 +67,7 @@ EI.buildBountyFormHtml = function (b) {
       '</div>' +
 
       '<div class="bounty-form-divider"></div>' +
-      '<div class="bounty-form-section-title">🕵 Issuer (the one paying)</div>' +
+      '<div class="bounty-form-section-title"><i class="fas fa-user-secret"></i> Issuer (the one paying)</div>' +
 
       '<div class="form-row">' +
         '<div class="form-field"><label>Issuer name <span class="req">*</span></label>' +
@@ -88,7 +88,7 @@ EI.buildBountyFormHtml = function (b) {
       '</div>' +
 
       '<div class="bounty-form-broker-section" id="brokerSection">' +
-        '<div class="bounty-form-section-title">🎯 Broker (contact for masked bounties)</div>' +
+        '<div class="bounty-form-section-title"><i class="fas fa-bullseye"></i> Broker (contact for masked bounties)</div>' +
         '<div class="form-row">' +
           '<div class="form-field"><label>Broker name</label>' +
             '<input type="text" id="bfBrokerName" value="' + EI.escapeHtml(b.broker_name) + '" placeholder="e.g. Kane Midfield" /></div>' +

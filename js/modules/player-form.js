@@ -33,8 +33,8 @@ EI.openPlayerForm = function (id) {
   EI.lastScrapeData = null;
   var p = id ? EI.findPlayer(id) : EI.blankPlayer();
   $("#playerFormTitle").html(id
-    ? '<span class="mt-icon">✎</span> Edit Pilot'
-    : '<span class="mt-icon">＋</span> Add Pilot');
+    ? '<span class="mt-icon"><i class="fas fa-pen"></i></span> Edit Pilot'
+    : '<span class="mt-icon"><i class="fas fa-plus"></i></span> Add Pilot');
   $("#playerFormDelete").toggle(!!id);
   $("#playerFormBody").html(EI.buildFormHtml(p, !!id));
   EI.renderTagPicker(p.tags || []);
@@ -64,7 +64,7 @@ EI.buildFormHtml = function (p, isEdit) {
 
   return (
     '<div class="echoes-fetch">' +
-      '<div style="font-size:13px;font-weight:600;color:var(--accent);margin-bottom:10px;">↻ Auto-fill from echoes.mobi</div>' +
+      '<div style="font-size:13px;font-weight:600;color:var(--accent);margin-bottom:10px;"><i class="fas fa-arrows-rotate"></i> Auto-fill from echoes.mobi</div>' +
       '<div class="echoes-fetch-head">' +
         '<div class="form-field">' +
           '<label>Pilot name on echoes.mobi</label>' +
@@ -187,7 +187,7 @@ EI.shipRowHtml = function (ship, role, fitting) {
       '<div class="ship-edit-row-head">' +
         '<input class="se-ship" placeholder="Ship name (e.g. Naglfar)" value="' + EI.escapeHtml(ship) + '" />' +
         '<input class="se-role ship-edit-role" placeholder="Role (e.g. Dreadnought brawler)" value="' + EI.escapeHtml(role) + '" />' +
-        '<button class="remove-ship-btn" title="Remove ship">×</button>' +
+        '<button class="remove-ship-btn" title="Remove ship"><i class="fas fa-xmark"></i></button>' +
       '</div>' +
       '<textarea class="fit-input" placeholder="Fittings — one per line (e.g. 3x 3500mm Railgun I)" rows="3">' +
         EI.escapeHtml(fitting) + '</textarea>' +
@@ -233,7 +233,7 @@ EI.doScrape = function () {
       EI.lastScrapeData = d;
       EI.lastScrapeData.fetchedAt = resp.fetchedAt;
       $st.attr("class", "echoes-fetch-status success")
-        .text("✓ Fetched " + (d.name || name) + " from echoes.mobi. Click \"Apply stats to form\" to fill in.");
+        .html('<i class="fas fa-check"></i> Fetched ' + (d.name || name) + ' from echoes.mobi. Click "Apply stats to form" to fill in.');
       $pv.html(EI.previewHtml(d) +
         '<div style="margin-top:10px;"><button class="admin-btn primary" id="applyScrapeBtn">Apply stats to form</button></div>'
       ).addClass("visible");
@@ -242,7 +242,7 @@ EI.doScrape = function () {
     .fail(function (xhr) {
       var msg = "Failed to reach scrape proxy.";
       try { var j = JSON.parse(xhr.responseText); if (j.error) msg = j.error; } catch (e) {}
-      $st.attr("class", "echoes-fetch-status error").text("✗ " + msg);
+      $st.attr("class", "echoes-fetch-status error").html('<i class="fas fa-xmark"></i> ' + msg);
     });
 };
 

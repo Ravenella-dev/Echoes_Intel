@@ -9,7 +9,7 @@
                         (.visible = shown; hidden otherwise)
      .modal          -> the white-ish dialog box itself
      .modal.wide     -> a wider variant for big forms
-     .modal-head     -> title bar + close (×) button
+     .modal-head     -> title bar + close (Font Awesome xmark) button
      .modal-body     -> the content area
      .modal-foot     -> the bottom button row (Cancel / Save)
 

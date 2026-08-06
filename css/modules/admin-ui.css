@@ -6,8 +6,8 @@
    the .admin-btn button styles used everywhere in the app.
 
      .admin-toolbar  -> the container for the status + buttons
-     .admin-status   -> the "● Guest" / "● admin · editor" pill
-                        (.loggedIn = green dot when logged in)
+     .admin-status   -> the "Guest" / "admin · editor" pill with a
+                        status dot (.loggedIn = green dot when logged in)
      .admin-btn      -> the base button style. Variants:
        .admin-btn.primary -> blue (main action, e.g. "Save")
        .admin-btn.danger  -> red (destructive, e.g. "Remove")
