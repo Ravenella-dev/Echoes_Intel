@@ -153,10 +153,10 @@ EI.renderUsers = function (users, levels) {
   }).join("");
   $body.html(
     '<div style="margin-bottom:12px;">' +
-    '<button class="admin-btn primary" id="addUserBtn">+ Add user</button>' +
+    '<button class="admin-btn primary" id="addUserBtn\"><i class="fas fa-plus"></i> Add user</button>' +
     '</div>' +
-    '<table class="users-table" style="width:100%;border-collapse:collapse;font-size:13px;">' +
-    '<thead><tr style="text-align:left;color:var(--text-faint);border-bottom:1px solid var(--border);">' +
+    '<table class="users-table">' +
+    '<thead><tr>' +
     '<th>Username</th><th>Access level</th><th>Password</th><th></th>' +
     '</tr></thead><tbody>' + rows + '</tbody></table>'
   );

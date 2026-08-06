@@ -70,7 +70,7 @@ EI.buildFormHtml = function (p, isEdit) {
           '<label>Pilot name on echoes.mobi</label>' +
           '<input type="text" id="scrapeName" placeholder="Enter a pilot..." value="' + EI.escapeHtml(isEdit ? p.name : "") + '" />' +
         '</div>' +
-        '<button class="admin-btn primary" id="scrapeBtn" style="height:38px;margin-bottom:0;">Fetch stats</button>' +
+        '<button class="admin-btn primary" id="scrapeBtn">Fetch stats</button>' +
       '</div>' +
       '<div class="echoes-fetch-status" id="scrapeStatus"></div>' +
       '<div class="echoes-preview" id="scrapePreview"></div>' +

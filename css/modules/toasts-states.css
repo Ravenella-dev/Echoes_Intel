@@ -67,8 +67,11 @@
   padding: 40px 24px;
   color: var(--text-faint);
   font-size: 17px;
+  line-height: 1.8;
 }
 
-.admin-empty-hint .btn {
-  margin-top: 16px;
+.admin-empty-hint .admin-btn {
+  margin-top: 18px;
+  padding: 11px 22px;
+  font-size: 15px;
 }

@@ -99,3 +99,84 @@
   cursor: not-allowed;
 }
 
+/* ============================================================
+   USERS MODAL — table + themed dropdown
+   ============================================================ */
+
+.users-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.users-table th {
+  text-align: left;
+  padding: 10px 12px;
+  color: var(--text-faint);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border);
+}
+
+.users-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.users-table tr:last-child td {
+  border-bottom: none;
+}
+
+.users-table td em {
+  color: var(--text-faint);
+  font-style: normal;
+}
+
+/* Themed <select> dropdown for access-level in the users table.
+   Replaces the browser default with a dark, app-consistent look
+   complete with a custom chevron arrow. */
+.users-table select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  width: 100%;
+  min-width: 120px;
+  padding: 8px 36px 8px 14px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--text);
+  background-color: var(--bg-panel-2);
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239fa8d9' d='M6 8L1.5 3.5h9z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.users-table select:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.users-table select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.users-table select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Style the dropdown options panel — works in WebKit/Chromium.
+   Firefox falls back to the color set above. */
+.users-table select option {
+  background: var(--bg-panel);
+  color: var(--text);
+  padding: 8px 14px;
+}

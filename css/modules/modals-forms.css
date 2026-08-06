@@ -369,6 +369,14 @@
   margin-bottom: 0;
 }
 
+/* Fetch-stats button — sized to match the adjacent text input */
+.echoes-fetch-head .admin-btn {
+  padding: 13px 20px;
+  font-size: 17px;
+  white-space: nowrap;
+  align-self: stretch;
+}
+
 .echoes-fetch-status {
   font-size: 15px;
   color: var(--text-dim);
