@@ -374,7 +374,7 @@
   padding: 13px 20px;
   font-size: 17px;
   white-space: nowrap;
-  align-self: stretch;
+  /* align-self: stretch; */
 }
 
 .echoes-fetch-status {
