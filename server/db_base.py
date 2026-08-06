@@ -180,23 +180,30 @@ def _seed_master_user(cur):
     _log("=" * 64)
 
 
+def _col_type(cur, table, column):
+    """Return the MySQL data type string for a column, or '' if missing."""
+    cur.execute(
+        """
+        SELECT DATA_TYPE FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME   = %s
+          AND COLUMN_NAME  = %s
+        """,
+        (table, column),
+    )
+    row = cur.fetchone()
+    return row[0] if row else ""
+
+
 def _migrate(cur):
     """Apply small schema fixes for databases created by older versions.
 
-    These are idempotent ALTER statements guarded by an information-schema
-    check, so they run harmlessly on every startup whether or not the fix
+    These are idempotent ALTER statements guarded by information-schema
+    checks, so they run harmlessly on every startup whether or not the fix
     is needed.
     """
     # --- users.updated_at was missing in very early deployments ---
-    cur.execute(
-        """
-        SELECT COUNT(*) FROM information_schema.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE()
-          AND TABLE_NAME   = 'users'
-          AND COLUMN_NAME  = 'updated_at'
-        """
-    )
-    if cur.fetchone()[0] == 0:
+    if not _col_type(cur, "users", "updated_at"):
         _log("Migration: adding users.updated_at column")
         cur.execute(
             "ALTER TABLE users "
@@ -204,16 +211,42 @@ def _migrate(cur):
             "AFTER created_at"
         )
 
+    # --- users.password_hash was VARCHAR(120); bcrypt needs 255 ---
+    if _col_type(cur, "users", "password_hash") in ("varchar",) :
+        cur.execute(
+            """
+            SELECT CHARACTER_MAXIMUM_LENGTH FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME   = 'users'
+              AND COLUMN_NAME  = 'password_hash'
+            """
+        )
+        if cur.fetchone()[0] < 255:
+            _log("Migration: widening users.password_hash to VARCHAR(255)")
+            cur.execute(
+                "ALTER TABLE users MODIFY COLUMN password_hash VARCHAR(255) NOT NULL"
+            )
+
+    # --- users.access_level was INT(11) in early deployments; now VARCHAR(16) ---
+    if _col_type(cur, "users", "access_level") == "int":
+        _log("Migration: converting users.access_level INT -> VARCHAR(16)")
+        # Convert old numeric levels to the new string names before changing type.
+        # 100 -> master, 50 -> admin, 20 -> editor, everything else -> viewer.
+        cur.execute("UPDATE users SET access_level = 100 WHERE access_level >= 100")
+        cur.execute("UPDATE users SET access_level = 50  WHERE access_level >= 50 AND access_level < 100")
+        cur.execute("UPDATE users SET access_level = 20  WHERE access_level >= 20 AND access_level < 50")
+        cur.execute("UPDATE users SET access_level = 0   WHERE access_level < 20")
+        # MySQL needs a temporary char column to hold the string names during the swap.
+        cur.execute("ALTER TABLE users ADD COLUMN access_level_new VARCHAR(16) NOT NULL DEFAULT 'viewer'")
+        cur.execute("UPDATE users SET access_level_new = 'master' WHERE access_level = 100")
+        cur.execute("UPDATE users SET access_level_new = 'admin'  WHERE access_level = 50")
+        cur.execute("UPDATE users SET access_level_new = 'editor' WHERE access_level = 20")
+        cur.execute("UPDATE users SET access_level_new = 'viewer' WHERE access_level = 0")
+        cur.execute("ALTER TABLE users DROP COLUMN access_level")
+        cur.execute("ALTER TABLE users CHANGE COLUMN access_level_new access_level VARCHAR(16) NOT NULL DEFAULT 'viewer'")
+
     # --- bounties.updated_at (same early-deployment issue) ---
-    cur.execute(
-        """
-        SELECT COUNT(*) FROM information_schema.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE()
-          AND TABLE_NAME   = 'bounties'
-          AND COLUMN_NAME  = 'updated_at'
-        """
-    )
-    if cur.fetchone()[0] == 0:
+    if not _col_type(cur, "bounties", "updated_at"):
         _log("Migration: adding bounties.updated_at column")
         cur.execute(
             "ALTER TABLE bounties "
