@@ -16,6 +16,8 @@
       </div>
       <button class="admin-btn" id="loginBtn">Admin Login</button>
       <button class="admin-btn primary" id="addPlayerBtn" style="display:none;">+ Add Pilot</button>
+      <button class="admin-btn" id="changelogBtn" style="display:none;">Changelog</button>
+      <button class="admin-btn" id="usersBtn" style="display:none;">Users</button>
       <button class="admin-btn" id="logoutBtn" style="display:none;">Logout</button>
     </div>
 
@@ -80,7 +82,7 @@
       <div class="modal-body">
         <div class="login-form">
           <div class="login-hint">
-            Demo credentials — username: <code>admin</code> · password: <code>echoes2024</code>
+            Log in with your assigned credentials. Contact the master account owner if you need access.
           </div>
           <div class="form-error" id="loginError">Invalid credentials. Try again.</div>
           <div class="form-field">
@@ -147,6 +149,35 @@
         <button class="admin-btn" data-close-modal="bountyFormModal">Cancel</button>
         <button class="admin-btn danger" id="bountyFormDelete" style="display:none;">Delete Bounty</button>
         <button class="admin-btn primary" id="bountyFormSave">Save Bounty</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Changelog modal (admin+) -->
+  <div class="modal-overlay" id="changelogModal">
+    <div class="modal wide">
+      <div class="modal-head">
+        <div class="modal-title"><span class="mt-icon">📜</span> Changelog</div>
+        <button class="modal-close" data-close-modal="changelogModal">×</button>
+      </div>
+      <div class="modal-body" id="changelogBody"></div>
+      <div class="modal-foot">
+        <button class="admin-btn" data-close-modal="changelogModal">Close</button>
+        <button class="admin-btn primary" id="changelogRefreshBtn">Refresh</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Users modal (master only) -->
+  <div class="modal-overlay" id="usersModal">
+    <div class="modal wide">
+      <div class="modal-head">
+        <div class="modal-title"><span class="mt-icon">👥</span> User Management</div>
+        <button class="modal-close" data-close-modal="usersModal">×</button>
+      </div>
+      <div class="modal-body" id="usersBody"></div>
+      <div class="modal-foot">
+        <button class="admin-btn" data-close-modal="usersModal">Close</button>
       </div>
     </div>
   </div>

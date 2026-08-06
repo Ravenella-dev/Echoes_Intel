@@ -15,11 +15,30 @@ $(function () {
   var SAVE_URL = "/api/players";
   var BOUNTY_URL = "/api/bounties";
 
-  // Demo admin credentials (client-side only).
-  var ADMIN_USER = "admin";
-  var ADMIN_PASS = "echoes2024";
-  var SESSION_KEY = "ee_intel_admin_session";
+  // ---- Auth config ----
+  // Authentication is now handled server-side. The frontend stores a session
+  // token returned by POST /api/login and sends it via Authorization: Bearer.
+  // No credentials are stored in client code.
+  var SESSION_KEY = "ee_intel_admin_session";   // holds the bearer token
+  var SESSION_USER_KEY = "ee_intel_session_user"; // cached {username, access_level}
   var STORAGE_KEY = "ee_intel_players_v1";
+
+  // Access levels (must match server.py). Higher index = more capability.
+  var ACCESS_LEVELS = ["viewer", "editor", "admin", "master"];
+  function accessRank(level) {
+    var i = ACCESS_LEVELS.indexOf(level);
+    return i < 0 ? -1 : i;
+  }
+  function hasAccess(level) {
+    return accessRank(currentUser.access_level) >= accessRank(level);
+  }
+
+  // Send the bearer token on any authenticated request.
+  function authHeader(extra) {
+    var h = extra || {};
+    if (authToken) h["Authorization"] = "Bearer " + authToken;
+    return h;
+  }
 
   /* ============================================================
      STATE
@@ -32,7 +51,9 @@ $(function () {
   var activeFilters = [];
   var currentTerm = "";
   var selectedId = null;
-  var isAdmin = false;
+  var currentUser = { username: "", access_level: "" };  // populated on login
+  var isAdmin = false;   // kept as a convenience alias for "can edit"
+  var authToken = null;  // bearer token for API requests
   var editingId = null;       // player id being edited (null = adding new)
   var pendingDeleteId = null;
   var lastScrapeData = null;  // echoes.mobi result currently in the form
@@ -162,7 +183,7 @@ $(function () {
       type: method,
       url: url,
       contentType: "application/json",
-      headers: { "X-Admin-Token": ADMIN_PASS },
+      headers: authHeader({}),
       data: JSON.stringify({ bounty: bounty })
     });
   }
@@ -172,7 +193,7 @@ $(function () {
     return $.ajax({
       type: "DELETE",
       url: BOUNTY_URL + "/" + bountyId,
-      headers: { "X-Admin-Token": ADMIN_PASS }
+      headers: authHeader({})
     });
   }
 
@@ -231,7 +252,7 @@ $(function () {
       type: "POST",
       url: SAVE_URL,
       contentType: "application/json",
-      headers: { "X-Admin-Token": ADMIN_PASS },
+      headers: authHeader({}),
       data: JSON.stringify({ players: PLAYERS })
     })
       .done(function (resp) {
@@ -563,7 +584,7 @@ $(function () {
      BOUNTY FORM (add / edit)
      ============================================================ */
   function openBountyForm(playerId, bountyId) {
-    if (!isAdmin) return;
+    if (!hasAccess("editor")) return;
     bountyFormTargetId = playerId;
     editingBountyId = bountyId || null;
 
@@ -775,8 +796,9 @@ $(function () {
 
         var bountyHtml = buildBountySection(p);
 
-    // admin-only action row
-    var adminActions = isAdmin
+    // admin-only action row (editor+)
+    var canEdit = hasAccess("editor");
+    var adminActions = canEdit
       ? '<div class="detail-admin-actions">' +
         '<button class="admin-btn" id="detailEditBtn" data-id="' + p.id + '">✎ Edit Pilot</button>' +
         '<button class="admin-btn" id="detailBountyBtn" data-id="' + p.id + '">🪸 Add Bounty</button>' +
@@ -826,40 +848,85 @@ $(function () {
   }
 
   /* ============================================================
-     ADMIN AUTH
+     ADMIN AUTH  (server-side, session-token based)
      ============================================================ */
+
+  // On page load, restore a cached token and verify it with the server.
   function checkSession() {
     try {
-      var s = sessionStorage.getItem(SESSION_KEY);
-      if (s === "1") { setAdmin(true, true); return; }
+      authToken = sessionStorage.getItem(SESSION_KEY) || null;
+      var cached = sessionStorage.getItem(SESSION_USER_KEY);
+      if (cached) currentUser = JSON.parse(cached);
     } catch (e) {}
-    setAdmin(false);
+
+    if (!authToken) { setAdmin(false); return; }
+
+    // Validate the token against the server.
+    $.ajax({
+      type: "GET",
+      url: "/api/session",
+      headers: authHeader({})
+    })
+      .done(function (resp) {
+        if (resp && resp.ok && resp.user) {
+          currentUser = resp.user;
+          setAdmin(true, true);
+        } else {
+          clearSession();
+          setAdmin(false);
+        }
+      })
+      .fail(function () {
+        clearSession();
+        setAdmin(false);
+      });
+  }
+
+  function clearSession() {
+    authToken = null;
+    currentUser = { username: "", access_level: "" };
+    try {
+      sessionStorage.removeItem(SESSION_KEY);
+      sessionStorage.removeItem(SESSION_USER_KEY);
+    } catch (e) {}
   }
 
   function setAdmin(on, silent) {
     isAdmin = on;
     if (on) {
-      try { sessionStorage.setItem(SESSION_KEY, "1"); } catch (e) {}
-      $("#adminStatus").addClass("loggedIn").find(".who").text("admin");
+      try {
+        sessionStorage.setItem(SESSION_KEY, authToken);
+        sessionStorage.setItem(SESSION_USER_KEY, JSON.stringify(currentUser));
+      } catch (e) {}
+      var whoLabel = currentUser.username || "user";
+      if (currentUser.access_level) whoLabel += " · " + currentUser.access_level;
+      $("#adminStatus").addClass("loggedIn").find(".who").text(whoLabel);
       $("#loginBtn").hide();
       $("#logoutBtn").show();
       $("#addPlayerBtn").show();
+      $("#changelogBtn").toggle(hasAccess("admin"));
+      $("#usersBtn").toggle(hasAccess("master"));
     } else {
-      try { sessionStorage.removeItem(SESSION_KEY); } catch (e) {}
+      try {
+        sessionStorage.removeItem(SESSION_KEY);
+        sessionStorage.removeItem(SESSION_USER_KEY);
+      } catch (e) {}
       $("#adminStatus").removeClass("loggedIn").find(".who").text("Guest");
       $("#loginBtn").show();
       $("#logoutBtn").hide();
       $("#addPlayerBtn").hide();
+      $("#changelogBtn").hide();
+      $("#usersBtn").hide();
     }
     renderResults();
     if (selectedId) renderDetail(selectedId);
-    if (!silent && on) toast("Logged in as admin", "success");
+    if (!silent && on) toast("Logged in as " + (currentUser.username || "admin"), "success");
   }
 
   function openLogin() {
     $("#loginUser").val("");
     $("#loginPass").val("");
-    $("#loginError").removeClass("visible");
+    $("#loginError").removeClass("visible").text("Invalid credentials. Try again.");
     openModal("loginModal");
     setTimeout(function () { $("#loginUser").focus(); }, 100);
   }
@@ -867,13 +934,48 @@ $(function () {
   function doLogin() {
     var u = $("#loginUser").val().trim();
     var p = $("#loginPass").val();
-    if (u === ADMIN_USER && p === ADMIN_PASS) {
-      closeModal("loginModal");
-      setAdmin(true);
-    } else {
+    if (!u || !p) {
       $("#loginError").addClass("visible");
-      $("#loginPass").val("").focus();
+      return;
     }
+    $("#loginSubmit").prop("disabled", true).text("Logging in...");
+    $.ajax({
+      type: "POST",
+      url: "/api/login",
+      contentType: "application/json",
+      data: JSON.stringify({ username: u, password: p })
+    })
+      .done(function (resp) {
+        $("#loginSubmit").prop("disabled", false).text("Login");
+        if (resp && resp.ok && resp.token) {
+          authToken = resp.token;
+          currentUser = resp.user || { username: u, access_level: "" };
+          closeModal("loginModal");
+          setAdmin(true);
+        } else {
+          $("#loginError").addClass("visible");
+          $("#loginPass").val("").focus();
+        }
+      })
+      .fail(function (xhr) {
+        $("#loginSubmit").prop("disabled", false).text("Login");
+        var msg = "Invalid credentials. Try again.";
+        try {
+          var j = JSON.parse(xhr.responseText);
+          if (j && j.error) msg = j.error;
+        } catch (e) {}
+        $("#loginError").text(msg).addClass("visible");
+        $("#loginPass").val("").focus();
+      });
+  }
+
+  function doLogout() {
+    if (authToken) {
+      $.ajax({ type: "POST", url: "/api/logout", headers: authHeader({}) });
+    }
+    clearSession();
+    setAdmin(false);
+    toast("Logged out", "info");
   }
 
   /* ============================================================
@@ -1332,14 +1434,14 @@ $(function () {
 
   // ---- admin buttons ----
   $("#loginBtn").on("click", openLogin);
-  $("#logoutBtn").on("click", function () {
-    setAdmin(false);
-    toast("Logged out", "warn");
-  });
+  $("#logoutBtn").on("click", doLogout);
   $("#addPlayerBtn").on("click", function () {
-    if (!isAdmin) return;
+    if (!hasAccess("editor")) return;
     openPlayerForm(null);
   });
+  $("#changelogBtn").on("click", openChangelogModal);
+  $("#usersBtn").on("click", openUsersModal);
+  $("#changelogRefreshBtn").on("click", loadChangelog);
   $("#loginSubmit").on("click", doLogin);
   $("#loginPass,#loginUser").on("keydown", function (e) {
     if (e.key === "Enter") doLogin();
@@ -1428,22 +1530,272 @@ $(function () {
   });
 
   /* ============================================================
+     CHANGELOG VIEWER + REVERSION  (admin+)
+     ============================================================ */
+  function openChangelogModal() {
+    if (!hasAccess("admin")) return;
+    openModal("changelogModal");
+    loadChangelog();
+  }
+
+  function loadChangelog() {
+    var $body = $("#changelogBody");
+    $body.html('<p style="color:var(--text-faint)">Loading changelog…</p>');
+    $.ajax({
+      type: "GET",
+      url: "/api/changelog?limit=200",
+      headers: authHeader({})
+    })
+      .done(function (resp) {
+        if (!resp || !resp.ok) {
+          $body.html('<p style="color:var(--danger)">Failed to load changelog.</p>');
+          return;
+        }
+        renderChangelog(resp.entries || []);
+      })
+      .fail(function (xhr) {
+        var msg = "Failed to load changelog.";
+        try { var j = JSON.parse(xhr.responseText); if (j && j.error) msg = j.error; } catch (e) {}
+        $body.html('<p style="color:var(--danger)">' + escapeHtml(msg) + '</p>');
+      });
+  }
+
+  function renderChangelog(entries) {
+    var $body = $("#changelogBody");
+    if (!entries.length) {
+      $body.html('<p style="color:var(--text-faint)">No changes have been logged yet. Changes made by the master account are not recorded.</p>');
+      return;
+    }
+    var rows = entries.map(function (e) {
+      var actionLabel = {
+        add: '<span style="color:var(--safe)">added</span>',
+        edit: '<span style="color:var(--warn)">edited</span>',
+        remove: '<span style="color:var(--danger)">removed</span>'
+      }[e.action] || escapeHtml(e.action);
+      var who = e.changed_by ? escapeHtml(e.changed_by) : "<em>unknown</em>";
+      var when = escapeHtml((e.changed_at || "").replace("T", " ").slice(0, 19));
+      var entType = escapeHtml(e.entity_type);
+      var entId = escapeHtml(String(e.entity_id));
+      var revertedTag = e.reverted
+        ? ' <span style="color:var(--text-faint)">(reverted)</span>'
+        : '';
+      var revertBtn = (!e.reverted)
+        ? '<button class="admin-btn small" data-revert="' + e.id + '">\u21ba Revert</button>'
+        : "";
+      var summary = "";
+      if (e.action === "edit" && e.snapshot_after) {
+        var nameA = e.snapshot_after.name || e.snapshot_after.target_name || entId;
+        summary = escapeHtml(String(nameA));
+      } else if (e.snapshot_after) {
+        var nameB = e.snapshot_after.name || e.snapshot_after.target_name || entId;
+        summary = escapeHtml(String(nameB));
+      } else if (e.snapshot_before) {
+        var nameC = e.snapshot_before.name || e.snapshot_before.target_name || entId;
+        summary = escapeHtml(String(nameC));
+      }
+      return '<tr>' +
+        '<td style="white-space:nowrap">' + when + '</td>' +
+        '<td>' + entType + '</td>' +
+        '<td>' + summary + '</td>' +
+        '<td>' + actionLabel + revertedTag + '</td>' +
+        '<td>' + who + '</td>' +
+        '<td>' + revertBtn + '</td>' +
+        '</tr>';
+    }).join("");
+    $body.html(
+      '<table class="changelog-table" style="width:100%;border-collapse:collapse;font-size:13px;">' +
+      '<thead><tr style="text-align:left;color:var(--text-faint);border-bottom:1px solid var(--border);">' +
+      '<th>When</th><th>Type</th><th>Entity</th><th>Action</th><th>By</th><th></th>' +
+      '</tr></thead><tbody>' + rows + '</tbody></table>'
+    );
+  }
+
+  // delegated revert handler
+  $(document).on("click", "[data-revert]", function () {
+    var id = $(this).attr("data-revert");
+    var $btn = $(this);
+    if (!confirm("Revert this change? This will restore or remove the affected entity.")) return;
+    $btn.prop("disabled", true).text("Reverting…");
+    $.ajax({
+      type: "POST",
+      url: "/api/changelog/" + id + "/revert",
+      headers: authHeader({})
+    })
+      .done(function (resp) {
+        if (resp && resp.ok) {
+          toast("Change reverted", "success");
+          loadChangelog();
+          // refresh data so the UI reflects the reversion
+          if (typeof loadData === "function") loadData();
+        } else {
+          toast((resp && resp.error) || "Revert failed", "error");
+          $btn.prop("disabled", false).text("\u21ba Revert");
+        }
+      })
+      .fail(function (xhr) {
+        var msg = "Revert failed.";
+        try { var j = JSON.parse(xhr.responseText); if (j && j.error) msg = j.error; } catch (e) {}
+        toast(msg, "error");
+        $btn.prop("disabled", false).text("\u21ba Revert");
+      });
+  });
+
+  /* ============================================================
+     USER MANAGEMENT  (master only)
+     ============================================================ */
+  function openUsersModal() {
+    if (!hasAccess("master")) return;
+    openModal("usersModal");
+    loadUsers();
+  }
+
+  function loadUsers() {
+    var $body = $("#usersBody");
+    $body.html('<p style="color:var(--text-faint)">Loading users…</p>');
+    $.ajax({ type: "GET", url: "/api/users", headers: authHeader({}) })
+      .done(function (resp) {
+        if (!resp || !resp.ok) {
+          $body.html('<p style="color:var(--danger)">Failed to load users.</p>');
+          return;
+        }
+        renderUsers(resp.users || [], resp.access_levels || ACCESS_LEVELS);
+      })
+      .fail(function (xhr) {
+        var msg = "Failed to load users.";
+        try { var j = JSON.parse(xhr.responseText); if (j && j.error) msg = j.error; } catch (e) {}
+        $body.html('<p style="color:var(--danger)">' + escapeHtml(msg) + '</p>');
+      });
+  }
+
+  function renderUsers(users, levels) {
+    var $body = $("#usersBody");
+    var lvlOpts = levels.map(function (l) {
+      return '<option value="' + l + '">' + l + '</option>';
+    }).join("");
+    var rows = users.map(function (u) {
+      var isSelf = (u.username === currentUser.username);
+      var isMaster = (u.access_level === "master");
+      var delBtn = (!isMaster && !isSelf)
+        ? '<button class="admin-btn small danger" data-del-user="' + u.id + '">\u00d7</button>'
+        : '<span style="color:var(--text-faint)">—</span>';
+      var pwBtn = '<button class="admin-btn small" data-pw-user="' + u.id + '">Set password</button>';
+      var lvlSelect = '<select data-lvl-user="' + u.id + '"' +
+        (isMaster ? ' disabled' : '') + '>' +
+        levels.map(function (l) {
+          return '<option value="' + l + '"' + (l === u.access_level ? ' selected' : '') + '>' + l + '</option>';
+        }).join("") + '</select>';
+      return '<tr>' +
+        '<td>' + escapeHtml(u.username) + (isSelf ? ' <em>(you)</em>' : '') + '</td>' +
+        '<td>' + lvlSelect + '</td>' +
+        '<td>' + pwBtn + '</td>' +
+        '<td>' + delBtn + '</td>' +
+        '</tr>';
+    }).join("");
+    $body.html(
+      '<div style="margin-bottom:12px;">' +
+      '<button class="admin-btn primary" id="addUserBtn">+ Add user</button>' +
+      '</div>' +
+      '<table class="users-table" style="width:100%;border-collapse:collapse;font-size:13px;">' +
+      '<thead><tr style="text-align:left;color:var(--text-faint);border-bottom:1px solid var(--border);">' +
+      '<th>Username</th><th>Access level</th><th>Password</th><th></th>' +
+      '</tr></thead><tbody>' + rows + '</tbody></table>'
+    );
+  }
+
+  // delegated user-management handlers
+  $(document).on("click", "#addUserBtn", function () {
+    var username = prompt("New username:");
+    if (!username) return;
+    var password = prompt("Password for " + username + ":");
+    if (!password) return;
+    var level = prompt("Access level (viewer / editor / admin / master):", "editor");
+    if (!level) return;
+    $.ajax({
+      type: "POST", url: "/api/users",
+      contentType: "application/json",
+      headers: authHeader({}),
+      data: JSON.stringify({ username: username, password: password, access_level: level })
+    })
+      .done(function (resp) {
+        if (resp && resp.ok) { toast("User created", "success"); loadUsers(); }
+        else { toast((resp && resp.error) || "Could not create user", "error"); }
+      })
+      .fail(function (xhr) {
+        var msg = "Could not create user.";
+        try { var j = JSON.parse(xhr.responseText); if (j && j.error) msg = j.error; } catch (e) {}
+        toast(msg, "error");
+      });
+  });
+
+  $(document).on("change", "[data-lvl-user]", function () {
+    var id = $(this).attr("data-lvl-user");
+    var level = $(this).val();
+    $.ajax({
+      type: "PUT", url: "/api/users/" + id,
+      contentType: "application/json",
+      headers: authHeader({}),
+      data: JSON.stringify({ access_level: level })
+    })
+      .done(function (resp) {
+        if (resp && resp.ok) { toast("Access level updated", "success"); loadUsers(); }
+        else { toast((resp && resp.error) || "Update failed", "error"); loadUsers(); }
+      })
+      .fail(function (xhr) {
+        var msg = "Update failed.";
+        try { var j = JSON.parse(xhr.responseText); if (j && j.error) msg = j.error; } catch (e) {}
+        toast(msg, "error"); loadUsers();
+      });
+  });
+
+  $(document).on("click", "[data-pw-user]", function () {
+    var id = $(this).attr("data-pw-user");
+    var pw = prompt("New password:");
+    if (!pw) return;
+    $.ajax({
+      type: "PUT", url: "/api/users/" + id,
+      contentType: "application/json",
+      headers: authHeader({}),
+      data: JSON.stringify({ password: pw })
+    })
+      .done(function (resp) {
+        if (resp && resp.ok) toast("Password updated", "success");
+        else toast((resp && resp.error) || "Update failed", "error");
+      })
+      .fail(function (xhr) {
+        var msg = "Update failed.";
+        try { var j = JSON.parse(xhr.responseText); if (j && j.error) msg = j.error; } catch (e) {}
+        toast(msg, "error");
+      });
+  });
+
+  $(document).on("click", "[data-del-user]", function () {
+    var id = $(this).attr("data-del-user");
+    if (!confirm("Delete this user?")) return;
+    $.ajax({
+      type: "DELETE", url: "/api/users/" + id,
+      headers: authHeader({})
+    })
+      .done(function (resp) {
+        if (resp && resp.ok) { toast("User deleted", "success"); loadUsers(); }
+        else toast((resp && resp.error) || "Delete failed", "error");
+      })
+      .fail(function (xhr) {
+        var msg = "Delete failed.";
+        try { var j = JSON.parse(xhr.responseText); if (j && j.error) msg = j.error; } catch (e) {}
+        toast(msg, "error");
+      });
+  });
+
+  /* ============================================================
      INIT
      ============================================================ */
-  function init() {
-    buildFilterChips();
-    checkSession();
-
+  function loadData() {
     $.getJSON(DATA_URL)
       .done(function (data) {
         DATA = data;
         TAG_CATS = data.tagCategories || {};
         BOUNTIES = data.bounties || [];
         BOUNTY_HISTORY = data.bountyHistory || {};
-        // The server file is the source of truth (edits are written back
-        // to players.json by POST /api/players). We only fall back to a
-        // localStorage copy if the JSON looks stale/empty (static-host
-        // scenario where the backend isn't available).
         var serverPlayers = data.players || [];
         var stored = loadStoredPlayers();
         if (serverPlayers.length > 0) {
@@ -1454,7 +1806,7 @@ $(function () {
           PLAYERS = serverPlayers.slice();
         }
         renderResults();
-        $("#searchInput").focus();
+        if (selectedId) renderDetail(selectedId);
       })
       .fail(function () {
         $("#resultsCount").html(
@@ -1463,6 +1815,13 @@ $(function () {
           "Serve the project via server.py (python3 server.py) so the JSON loads.</span>"
         );
       });
+  }
+
+  function init() {
+    buildFilterChips();
+    checkSession();
+    loadData();
+    $("#searchInput").focus();
   }
 
   init();
