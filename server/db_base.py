@@ -180,12 +180,55 @@ def _seed_master_user(cur):
     _log("=" * 64)
 
 
+def _migrate(cur):
+    """Apply small schema fixes for databases created by older versions.
+
+    These are idempotent ALTER statements guarded by an information-schema
+    check, so they run harmlessly on every startup whether or not the fix
+    is needed.
+    """
+    # --- users.updated_at was missing in very early deployments ---
+    cur.execute(
+        """
+        SELECT COUNT(*) FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME   = 'users'
+          AND COLUMN_NAME  = 'updated_at'
+        """
+    )
+    if cur.fetchone()[0] == 0:
+        _log("Migration: adding users.updated_at column")
+        cur.execute(
+            "ALTER TABLE users "
+            "ADD COLUMN updated_at VARCHAR(40) NOT NULL DEFAULT '' "
+            "AFTER created_at"
+        )
+
+    # --- bounties.updated_at (same early-deployment issue) ---
+    cur.execute(
+        """
+        SELECT COUNT(*) FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME   = 'bounties'
+          AND COLUMN_NAME  = 'updated_at'
+        """
+    )
+    if cur.fetchone()[0] == 0:
+        _log("Migration: adding bounties.updated_at column")
+        cur.execute(
+            "ALTER TABLE bounties "
+            "ADD COLUMN updated_at VARCHAR(40) NOT NULL DEFAULT '' "
+            "AFTER created_at"
+        )
+
+
 def db_init():
-    """Create tables if missing and seed example data on first run."""
+    """Create tables if missing, run migrations, and seed example data."""
     conn = _db_conn()
     cur = conn.cursor()
     for sql in _TABLE_SQL:
         cur.execute(sql)
+    _migrate(cur)
     _seed_players(cur)
     _seed_bounties(cur)
     _seed_master_user(cur)
