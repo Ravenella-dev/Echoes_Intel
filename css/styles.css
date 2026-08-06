@@ -1459,7 +1459,30 @@ header.app-header {
   border: 1px solid rgba(0,163,255,0.3);
   color: var(--accent);
   margin-left: 10px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.1s;
   vertical-align: middle;
+}
+.scraped-badge:hover {
+  background: rgba(0,163,255,0.25);
+  border-color: rgba(0,163,255,0.6);
+  color: #7dd3ff;
+  text-decoration: none;
+}
+.scraped-badge:active {
+  transform: scale(0.95);
+}
+.scraped-badge.stale {
+  background: rgba(243,156,18,0.1);
+  border-color: rgba(243,156,18,0.3);
+  color: var(--warning);
+}
+.scraped-badge.stale:hover {
+  background: rgba(243,156,18,0.2);
+  border-color: rgba(243,156,18,0.55);
+  color: #f0b04e;
+}  vertical-align: middle;
   font-weight: 600;
 }
 

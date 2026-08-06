@@ -314,9 +314,12 @@ $(function () {
       (p.tags || []).forEach(function (t) {
         if (shownTags.indexOf(t) === -1 && shownTags.length < 3) shownTags.push(t);
       });
+      var mobiUrl = "https://echoes.mobi/killboard/view/player/" + encodeURIComponent(p.name) + "/summary";
       var scrapeBadge = p.scrapedAt
-        ? '<span class="scraped-badge' + (isStale(p.scrapedAt) ? " stale" : "") +
-          '" title="Stats from echoes.mobi · ' + escapeHtml(p.scrapedAt) + '">echoes.mobi</span>'
+        ? '<a class="scraped-badge' + (isStale(p.scrapedAt) ? " stale" : "") +
+          '" href="' + mobiUrl + '" target="_blank" rel="noopener noreferrer"' +
+          ' title="View ' + escapeHtml(p.name) + ' on echoes.mobi · stats scraped ' + escapeHtml(p.scrapedAt) + '">' +
+          'echoes.mobi</a>'
         : "";
 
       var bountyTotal = totalBountyForPlayer(p.id);
@@ -729,10 +732,12 @@ $(function () {
     var tClass = threatClass(p.threatLevel);
     var statusClass = (p.status || "").toLowerCase().indexOf("inactive") > -1 ? "inactive" : "active";
     var tagsHtml = (p.tags || []).map(fullTag).join("");
+    var mobiUrl = "https://echoes.mobi/killboard/view/player/" + encodeURIComponent(p.name) + "/summary";
     var scrapeBadge = p.scrapedAt
-      ? '<span class="scraped-badge' + (isStale(p.scrapedAt) ? " stale" : "") +
-        '" title="Stats scraped from echoes.mobi on ' + escapeHtml(p.scrapedAt) +
-        '"> ↻ echoes.mobi · ' + escapeHtml((p.scrapedAt || "").slice(0, 10)) + '</span>'
+      ? '<a class="scraped-badge' + (isStale(p.scrapedAt) ? " stale" : "") +
+        '" href="' + mobiUrl + '" target="_blank" rel="noopener noreferrer"' +
+        ' title="View ' + escapeHtml(p.name) + ' on echoes.mobi · stats scraped ' + escapeHtml(p.scrapedAt) +
+        '"> ↻ echoes.mobi · ' + escapeHtml((p.scrapedAt || "").slice(0, 10)) + '</a>'
       : "";
 
     var statsHtml =
