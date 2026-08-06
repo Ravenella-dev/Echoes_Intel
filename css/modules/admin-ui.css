@@ -1,0 +1,101 @@
+/* ============================================================
+   admin-ui.css  —  Admin toolbar + buttons
+   ------------------------------------------------------------
+   The login/logout/add-pilot buttons in the top-right of the
+   header, plus the "admin / guest" status indicator. Also defines
+   the .admin-btn button styles used everywhere in the app.
+
+     .admin-toolbar  -> the container for the status + buttons
+     .admin-status   -> the "● Guest" / "● admin · editor" pill
+                        (.loggedIn = green dot when logged in)
+     .admin-btn      -> the base button style. Variants:
+       .admin-btn.primary -> blue (main action, e.g. "Save")
+       .admin-btn.danger  -> red (destructive, e.g. "Remove")
+       .admin-btn.small   -> compact size (used in lists)
+
+   These button classes are reused inside modals, the detail panel,
+   and the changelog/user tables.
+   ============================================================ */
+/* ============================================================
+   ADMIN SYSTEM — login, toolbar, modal forms
+   ============================================================ */
+
+/* ---- admin toolbar (top-right of header) ---- */
+.admin-toolbar {
+  position: absolute;
+  top: 24px;
+  right: 36px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 5;
+}
+
+.admin-status {
+  font-size: 14px;
+  color: var(--text-faint);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-status .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text-faint);
+}
+
+.admin-status.loggedIn .dot {
+  background: var(--safe);
+  box-shadow: 0 0 8px var(--safe);
+}
+
+.admin-status .who {
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+.admin-btn {
+  font-size: 15px;
+  padding: 9px 18px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-panel-2);
+  color: var(--text-dim);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.admin-btn:hover {
+  border-color: var(--accent);
+  color: var(--text);
+  background: var(--bg-card-hover);
+}
+
+.admin-btn.primary {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.admin-btn.primary:hover {
+  background: var(--accent);
+}
+
+.admin-btn.danger {
+  border-color: rgba(231,76,60,0.4);
+  color: var(--danger);
+}
+
+.admin-btn.danger:hover {
+  background: rgba(231,76,60,0.15);
+  border-color: var(--danger);
+}
+
+.admin-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+

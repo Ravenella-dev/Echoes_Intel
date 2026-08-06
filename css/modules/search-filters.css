@@ -1,0 +1,120 @@
+/* ============================================================
+   search-filters.css  —  Search box + filter chips
+   ------------------------------------------------------------
+   The search input (with its magnifying-glass icon and clear "x"
+   button) and the row of clickable "Quick filter" chips below it.
+
+     .search-wrap   -> the container around the search box
+     .search-input  -> the text field itself
+     .search-icon   -> the 🔍 icon on the left
+     .search-clear  -> the × button that appears when typing
+     .filter-bar    -> the row that holds the filter chips
+     .filter-chip   -> one clickable filter button
+                       (.active = currently turned on)
+   ============================================================ */
+/* ---------- SEARCH BAR ---------- */
+.search-wrap {
+  position: relative;
+  max-width: 760px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 18px 22px 18px 58px;
+  font-size: 19px;
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  font-family: inherit;
+}
+
+.search-input::placeholder {
+  color: var(--text-faint);
+}
+
+.search-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-glow);
+}
+
+.search-icon {
+  position: absolute;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-dim);
+  font-size: 22px;
+  pointer-events: none;
+}
+
+.search-clear {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 22px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  display: none;
+}
+
+.search-clear:hover {
+  color: var(--text);
+  background: rgba(255,255,255,0.05);
+}
+
+.search-clear.visible {
+  display: block;
+}
+
+/* ---------- FILTER CHIPS ---------- */
+.filter-bar {
+  margin-top: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.filter-label {
+  font-size: 14px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  margin-right: 6px;
+  font-weight: 600;
+}
+
+.filter-chip {
+  font-size: 15px;
+  padding: 8px 16px;
+  border-radius: 24px;
+  border: 1px solid var(--border);
+  background: var(--bg-panel-2);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.filter-chip:hover {
+  border-color: var(--border-active);
+  color: var(--text);
+}
+
+.filter-chip.active {
+  border-color: var(--accent);
+  color: #fff;
+  background: var(--accent-dim);
+}
+

@@ -121,7 +121,17 @@ def has_access(user_level: str, required_level: str) -> bool:
 # Database credentials MUST be supplied via environment variables. They are
 # never hardcoded in source. The server will refuse to start if the required
 # connection parameters are missing.
+#
+# If a .env file exists in the project root, load it automatically so you can
+# keep your secrets there instead of exporting them in the shell every time.
 import os
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv(ROOT / ".env")
+except ImportError:
+    # python-dotenv is optional — env vars set in the shell still work fine.
+    pass
 
 _DB_HOST = os.environ.get("ECHOES_DB_HOST")
 _DB_USER = os.environ.get("ECHOES_DB_USER")

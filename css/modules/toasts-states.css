@@ -1,0 +1,74 @@
+/* ============================================================
+   toasts-states.css  —  Toasts + empty states
+   ------------------------------------------------------------
+   The smallest stylesheet. Two unrelated but small things:
+
+   TOASTS  -> the little pop-up notifications (e.g. "Saved to
+   server") that slide in at the bottom-right and fade away.
+     .toast-stack  -> the container that holds them
+     .toast        -> one notification
+       .toast.success -> green left border
+       .toast.error   -> red left border
+       .toast.warn    -> orange left border
+
+   EMPTY STATES  -> the message shown in the results list when
+   there are no pilots at all (prompting the admin to add the
+   first one).
+     .admin-empty-hint  -> the "Add the first pilot" prompt
+   ============================================================ */
+/* ---- admin action row on detail ---- */
+.detail-admin-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+/* ---- toast notifications ---- */
+.toast-stack {
+  position: fixed;
+  bottom: 26px;
+  right: 26px;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.toast {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-active);
+  border-left: 4px solid var(--accent);
+  border-radius: 8px;
+  padding: 15px 20px;
+  font-size: 16px;
+  color: var(--text);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  max-width: 400px;
+  animation: slideInRight 0.2s ease;
+  pointer-events: auto;
+}
+
+.toast.success { border-left-color: var(--safe); }
+.toast.error { border-left-color: var(--danger); }
+.toast.warn { border-left-color: var(--warning); }
+
+@keyframes slideInRight {
+  from { transform: translateX(50px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* ---- empty state when no players ---- */
+.admin-empty-hint {
+  text-align: center;
+  padding: 40px 24px;
+  color: var(--text-faint);
+  font-size: 17px;
+}
+
+.admin-empty-hint .btn {
+  margin-top: 16px;
+}
